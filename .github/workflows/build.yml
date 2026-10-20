@@ -1,0 +1,169 @@
+# Builds DocForge on every push to main and publishes downloadable binaries.
+#
+# Targets:
+#   * Android APK + AAB (runs on a hosted Ubuntu runner, no secrets required)
+#   * Windows x64 desktop (primary platform; the VS C++ toolchain is preinstalled)
+#
+# Web is intentionally absent: DocForge uses dart:io for engine processes.
+# iOS is absent until signing is configured and mobile engines are bundled;
+# it would need a macos runner plus certificates/provisioning profiles.
+name: Build DocForge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only token: this workflow only builds and uploads artifacts.
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the previous run.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep in sync with the local SDK (Flutter 3.41.5 / Dart 3.11.3).
+  FLUTTER_VERSION: 3.41.5
+  FLUTTER_CHANNEL: stable
+
+jobs:
+  test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test --reporter expanded
+
+  android:
+    name: Android (APK + AAB)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Read app version from pubspec
+        run: |
+          version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1 | cut -d+ -f1)
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        run: flutter build apk --release --build-number "${{ github.run_number }}"
+
+      - name: Build release app bundle
+        run: flutter build appbundle --release --build-number "${{ github.run_number }}"
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/DocForge-${APP_VERSION}.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "dist/DocForge-${APP_VERSION}.aab"
+
+      # archive: false uploads the file as-is, so the artifact is the APK/AAB
+      # itself rather than a zip wrapping it. The file name becomes the
+      # artifact name.
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload app bundle
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.aab
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Windows x64
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Read app version from pubspec
+        shell: pwsh
+        run: |
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$' | Select-Object -First 1
+          $version = $match.Matches[0].Groups[1].Value.Trim().Split('+')[0]
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build release app
+        run: flutter build windows --release
+
+      # Engines (QPDF, Tesseract, ...) are resolved at runtime from the host or a
+      # portable `engines/` folder next to DocForge.exe. Hosted runners have none
+      # installed, so this artifact ships without them. For a portable build,
+      # stage engines locally before packaging:
+      #   pwsh -File tool/stage_engines.ps1 -Destination build/windows/x64/runner/Release/engines
+      # See docs/ENGINES.md.
+      - name: Package build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build/windows/x64/runner/Release/* `
+            -DestinationPath "dist/DocForge-$env:APP_VERSION-windows-x64.zip"
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
