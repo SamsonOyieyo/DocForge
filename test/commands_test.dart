@@ -1,5 +1,6 @@
 import 'package:docforge/core/pdf/commands.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   group('QPDF command builders', () {
@@ -114,17 +115,20 @@ void main() {
   group('OutputNaming', () {
     test('suffix preserves the base name', () {
       expect(
-        OutputNaming.withSuffix(r'C:\docs\Report Final.pdf', '-compressed'),
+        OutputNaming.withSuffix(p.join('docs', 'Report Final.pdf'), '-compressed'),
         'Report Final-compressed.pdf',
       );
       expect(
-        OutputNaming.withSuffix('/tmp/report.pdf', '', extension: '.docx'),
+        OutputNaming.withSuffix(p.join('tmp', 'report.pdf'), '', extension: '.docx'),
         'report.docx',
       );
     });
 
     test('numbered pattern injects the marker', () {
-      expect(OutputNaming.numberedPattern(r'C:\out\split.pdf'), r'C:\out\split-%d.pdf');
+      expect(
+        OutputNaming.numberedPattern(p.join('out', 'split.pdf')),
+        p.join('out', 'split-%d.pdf'),
+      );
     });
   });
 }
