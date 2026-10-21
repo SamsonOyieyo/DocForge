@@ -21,6 +21,7 @@ in a background isolate and every document mutation is delegated to an external
 ┌───────────────────────────▼──────────────────────────────────┐
 │ Engine layer                                                 │
 │  toolkit.dart      discovery, overrides, version probes      │
+│  engine_manager.dart  seeds, OTA packages, hot-swap, rollback│
 │  process_runner.dart  streamed stdout/stderr, exit codes     │
 │  commands.dart     pure, audited argv builders               │
 │  overlay.dart      pure-Dart PDF generation (pdf package)    │
@@ -29,14 +30,16 @@ in a background isolate and every document mutation is delegated to an external
 ┌───────────────────────────▼──────────────────────────────────┐
 │ Engines: QPDF · Ghostscript · Poppler · Tesseract ·          │
 │          LibreOffice · pdf2docx                              │
+│          (system installs, bundled seeds, OTA packages)      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ## Design rules
 
-1. **No network code.** There is no HTTP client, analytics or crash reporter
-   dependency. Files only move between the user's input folder, a temporary
-   working directory and the chosen output folder.
+1. **No document ever leaves the device.** There is no analytics or crash
+   reporter. The only network code is the opt-in engine updater, which fetches
+   an engine manifest and, when the user asks for it, an engine package.
+   `autoUpdateEngines` defaults to off on a fresh install.
 2. **The UI thread never parses or writes documents.** Page-count probing is
    the only exception and uses `pdfrx` asynchronously for small files.
 3. **Jobs are serializable.** `JobRequest` contains strings, numbers, lists and
@@ -48,6 +51,29 @@ in a background isolate and every document mutation is delegated to an external
    the exact argv used against a document can be unit-tested and audited.
 6. **Outputs never overwrite.** `AppFiles.uniqueName` and the job runner add
    `-2`, `-3`, … before writing.
+
+## Engine packages and OTA updates
+
+Engines can arrive from three places, resolved in this order by `Toolkit`:
+a Settings override, a **managed package** installed by `EngineManager`
+(bundled seed or downloaded update), then a bundled `engines/` folder / `PATH` /
+known install location.
+
+Managed engines live as immutable versions under
+`<application support>/engines/<engine>/<version>/`; `state.json` points at the
+active version and keeps the previous one for rollback. Updates download only
+the affected engine, verify the manifest's SHA-256, extract into a staging
+folder, validate `engine.json`, then rename into place and move the pointer
+last, so an interrupted update never breaks the working engine. Packages can
+also expose `lib/` folders; their paths are passed to the job isolate through
+`JobRequest.toolEnvironment`.
+
+Android is the exception: API 29+ cannot execute downloaded binaries from app
+storage, so mobile engines must be APK-native/FFI and only scripts/data are
+hot-swappable (the YTDLnis pattern). `EngineManager` refuses `process` packages
+on Android unless a sideloaded build opts in with
+`allowAndroidProcessEngines = true`. Full details, manifest schema and the
+release workflow are in [`ENGINES_OTA.md`](ENGINES_OTA.md).
 
 ## Tool registry
 
@@ -151,12 +177,14 @@ used by overlays.
 | Windows | Primary development target. Engines discovered from PATH, WinGet packages, versioned install folders. |
 | macOS | Supported by the same process layer; engines from Homebrew or app bundle. |
 | Linux | Supported; engines from distro packages. |
-| Android/iOS | UI builds, but desktop engines are not bundled yet. Tools that need an engine report “engine missing” until FFI/bundled engines land. |
+| Android/iOS | UI builds. Android cannot exec downloaded binaries from app storage (API 29+), so engines must ship as APK-native FFI libraries or scripts/data; until then tools report “engine missing”. |
 
 ## Testing
 
-- `flutter test` — unit tests for commands, page ranges and settings, plus
-  widget tests for the desktop/phone shell and narrow tool/settings layouts.
+- `flutter test` — unit tests for commands, page ranges, settings and the engine
+  manager (seed extraction, checksum rejection, hot-swap, rollback, Android
+  guard), plus widget tests for the desktop/phone shell and narrow tool/settings
+  layouts.
 - `dart run tool/make_samples.dart` — deterministic sample PDFs.
 - `dart run tool/smoke_test.dart` — runs the real `JobRunner` for every
   available engine and validates outputs with QPDF (`--check`,

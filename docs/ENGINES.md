@@ -71,19 +71,24 @@ sudo apt install qpdf ghostscript poppler-utils tesseract-ocr libreoffice-core
 
 ### Android / iOS
 
-No external installs. The current build reports the engine as missing. See the
-FFI roadmap below.
+No external installs. Android can only execute binaries from the APK's native
+library directory (API 29+ removed `execve` on app-home files), so the mobile
+plan is APK-native FFI libraries plus OTA-updated scripts/data. See
+[`ENGINES_OTA.md`](ENGINES_OTA.md) for the constraint and the YTDLnis-style
+workaround.
 
 ## Discovery order
 
 `Toolkit.detect()` checks, per engine:
 
 1. **Override** saved in Settings (must be an existing file).
-2. **Bundled**: `engines/` next to the executable, in the app support directory,
+2. **Managed**: an engine installed by `EngineManager` (bundled seed or OTA
+   package). The path comes from `<support>/engines/<engine>/<version>/`.
+3. **Bundled**: `engines/` next to the executable, in the app support directory,
    or in the current working directory (including one level of per-engine
    subfolders).
-3. **PATH**.
-4. **Known locations**: platform install folders, versioned folders such as
+4. **PATH**.
+5. **Known locations**: platform install folders, versioned folders such as
    `qpdf 12.4.2`, Ghostscript `gs<version>/bin`, WinGet portable packages under
    `%LOCALAPPDATA%\Microsoft\WinGet\Packages`, and the WinGet links directory.
 
@@ -114,6 +119,33 @@ flag and fails if one does not start.
 Ghostscript and LibreOffice are **not** staged: both rely on large resource
 trees and installers. Ship them as user-installed engines, or add a dedicated
 packaging step later.
+
+## Managed engine packages (seeds + OTA)
+
+`EngineManager` installs engines as immutable version directories under
+`<application support>/engines/<engine>/<version>/` and points `state.json` at
+the active one. On launch it:
+
+1. extracts `assets/engines/seeds.json` packages that are newer than what is
+   installed (desktop builds bundle a seed; Android bundles none),
+2. retries cleanup of interrupted installs,
+3. reads the cached manifest so Settings can show updates offline.
+
+Settings → Engine updates checks the rolling `engines` release manifest on demand (or
+at launch when the opt-in switch is on). Only that engine's zip is downloaded;
+SHA-256 is verified before extraction, the new version is staged and renamed
+into place, and the pointer moves last. The previous version is kept for
+`EngineManager.rollback`.
+
+The package contract, manifest schema, CI workflow and adoption plan are in
+[`ENGINES_OTA.md`](ENGINES_OTA.md). In short:
+
+- `engine.json` at the zip root: `id`, `version`, `executables`, `license`,
+  `runtimes`;
+- per-platform assets (`windows-x64`, `android-arm64-v8a`, …) with SHA-256;
+- `runtimes: ["process"]` packages are refused on Android unless the build is
+  sideloaded with `targetSdk 28` (`allowAndroidProcessEngines`), because modern
+  Android cannot execute downloaded binaries.
 
 ## FFI roadmap
 

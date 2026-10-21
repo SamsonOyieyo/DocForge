@@ -11,6 +11,7 @@ class JobRequest {
     required this.outputDirectory,
     required this.outputName,
     required this.toolPaths,
+    this.toolEnvironment = const {},
     this.options = const {},
   });
 
@@ -22,6 +23,9 @@ class JobRequest {
   /// Engine name (`EngineTool.name`) to absolute executable path.
   final Map<String, String> toolPaths;
 
+  /// Extra environment for engine processes (bundled `lib/` search paths).
+  final Map<String, String> toolEnvironment;
+
   final Map<String, Object?> options;
 
   String get outputPath => '$outputDirectory${Platform.pathSeparator}$outputName';
@@ -31,6 +35,7 @@ class JobRequest {
     String? outputDirectory,
     String? outputName,
     Map<String, String>? toolPaths,
+    Map<String, String>? toolEnvironment,
     Map<String, Object?>? options,
   }) =>
       JobRequest(
@@ -39,6 +44,7 @@ class JobRequest {
         outputDirectory: outputDirectory ?? this.outputDirectory,
         outputName: outputName ?? this.outputName,
         toolPaths: toolPaths ?? this.toolPaths,
+        toolEnvironment: toolEnvironment ?? this.toolEnvironment,
         options: options ?? this.options,
       );
 }

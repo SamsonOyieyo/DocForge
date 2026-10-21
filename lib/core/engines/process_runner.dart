@@ -23,6 +23,16 @@ class ProcessOutput {
 final Set<Process> _activeProcesses = <Process>{};
 bool _cancelRequested = false;
 
+/// Extra environment applied to every engine process in this isolate.
+///
+/// The job layer sets it from `JobRequest.toolEnvironment` so a managed engine
+/// can find the shared libraries shipped in its own `lib/` folder.
+Map<String, String> _engineEnvironment = const {};
+
+void setEngineEnvironment(Map<String, String> environment) {
+  _engineEnvironment = Map.unmodifiable(environment);
+}
+
 /// Terminates every engine process started by the current isolate.
 ///
 /// Called when the job is cancelled; the isolate itself is killed shortly
@@ -55,7 +65,9 @@ Future<ProcessOutput> runProcess(
     executable,
     arguments,
     workingDirectory: workingDirectory,
-    environment: environment,
+    environment: environment == null
+        ? _engineEnvironment
+        : {..._engineEnvironment, ...environment},
     runInShell: false,
   );
 

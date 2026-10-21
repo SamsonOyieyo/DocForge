@@ -38,6 +38,10 @@ dependencies:
   path_provider: ^2.1.6
   shared_preferences: ^2.5.6
   pdf: ^3.12.0
+  # Engine packaging: zip extraction plus checksum verification for the OTA
+  # engine layer (lib/core/engines/engine_installer.dart).
+  archive: ^4.0.9
+  crypto: ^3.0.7
   # Pinned: image 4.11.0 calls ZLibDecoder.decodeLazy (archive >= 4.1.0),
   # while pdf 3.12 constrains archive to < 4.1.0. Lift this pin once pdf
   # allows archive 4.1+ or a fixed image release is available.
@@ -68,6 +72,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Bundled engine seeds (`assets/engines/seeds.json` plus one zip per
+  # platform). The zip files are produced by the engine release workflow.
+  assets:
+    - assets/engines/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

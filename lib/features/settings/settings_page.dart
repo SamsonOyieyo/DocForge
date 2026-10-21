@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_state.dart';
+import '../../core/engines/engine_manager.dart';
 import '../../core/engines/engine_tool.dart';
 import '../../core/engines/native_probe.dart';
 import '../../core/files.dart';
@@ -161,6 +162,86 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
               const SizedBox(height: 12),
               _Section(
+                title: 'Engine updates',
+                subtitle: 'Engines are independent packages: a single engine can be '
+                    'updated without shipping a new app build. Documents never leave '
+                    'this device.',
+                trailing: app.checkingEngines
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : IconButton(
+                        tooltip: 'Check for engine updates',
+                        icon: const Icon(Icons.system_update_alt_rounded, size: 20),
+                        onPressed: app.engineManager == null ? null : app.checkEngineUpdates,
+                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: app.settings.autoUpdateEngines,
+                      onChanged: (value) => app.updateSettings(
+                        app.settings.copyWith(autoUpdateEngines: value),
+                      ),
+                      title: const Text('Check for engine updates at launch'),
+                      subtitle: const Text(
+                        'Only the engine manifest is downloaded. Documents are never uploaded.',
+                      ),
+                    ),
+                    if (app.engineUpdates.isNotEmpty) ...[
+                      for (final update in app.engineUpdates) ...[
+                        _EngineUpdateCard(
+                          update: update,
+                          busy: app.installingEngine,
+                          onApply: app.installingEngine
+                              ? null
+                              : () => _applyUpdate(app, update),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ] else
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          app.engineManager == null
+                              ? 'Managed engines are unavailable on this platform.'
+                              : 'No engine updates are pending.',
+                          style: text.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    if (app.installingEngine) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: app.engineManager?.downloadProgress,
+                      ),
+                    ],
+                    if (app.engineError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        app.engineError!,
+                        style: text.bodySmall?.copyWith(color: scheme.error),
+                      ),
+                    ],
+                    for (final warning in app.engineWarnings) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        warning,
+                        style: text.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _Section(
                 title: 'Diagnostics',
                 subtitle: 'Optional native libraries found next to the app. '
                     'PDFium is bundled by the viewer; other FFI adapters can be dropped into engines/.',
@@ -269,6 +350,17 @@ class _SettingsPageState extends State<SettingsPage> {
     if (file?.path == null) return;
     await app.updateSettings(app.settings.withToolPath(tool, file!.path));
   }
+
+  Future<void> _applyUpdate(AppState app, EngineUpdate update) async {
+    final result = await app.applyEngineUpdate(update);
+    if (!mounted || result == null) return;
+    final message = result.success
+        ? (result.message ?? 'Engine updated.')
+        : (result.error ?? 'The engine update failed.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 }
 
 class _Section extends StatelessWidget {
@@ -313,6 +405,7 @@ class _EngineCard extends StatelessWidget {
     final tool = status.tool;
     final sourceLabel = switch (status.source) {
       EngineSource.override => 'Custom path',
+      EngineSource.managed => 'Managed',
       EngineSource.bundled => 'Bundled',
       EngineSource.path => 'PATH',
       EngineSource.knownLocation => 'Installed',
@@ -413,4 +506,97 @@ class _EngineCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _EngineUpdateCard extends StatelessWidget {
+  const _EngineUpdateCard({
+    required this.update,
+    required this.busy,
+    this.onApply,
+  });
+
+  final EngineUpdate update;
+  final bool busy;
+  final VoidCallback? onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final notes = update.release.notes ?? '';
+    final current = update.currentVersion;
+
+    return SurfaceCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(_engineLabel(update.tool), style: text.titleSmall),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'v${update.version}',
+                  style: text.labelSmall?.copyWith(color: scheme.primary),
+                ),
+              ),
+              if (current != null)
+                Text(
+                  'from v$current',
+                  style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+            ],
+          ),
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              notes,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+          if (update.blockedReason != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              update.blockedReason!,
+              style: text.bodySmall?.copyWith(color: scheme.error),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: busy || !update.installable ? null : onApply,
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: Text(
+                update.asset.size > 0
+                    ? 'Update (${_formatBytes(update.asset.size)})'
+                    : 'Update',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _engineLabel(String id) {
+  for (final tool in EngineTool.values) {
+    if (tool.name == id) return tool.label;
+  }
+  return id;
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }

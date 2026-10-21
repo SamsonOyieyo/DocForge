@@ -11,6 +11,8 @@ class AppSettings {
     this.themeMode = ThemeMode.system,
     this.outputDirectory,
     this.toolPaths = const {},
+    this.engineManifestUrl,
+    this.autoUpdateEngines = false,
   });
 
   final ThemeMode themeMode;
@@ -19,16 +21,30 @@ class AppSettings {
   /// Engine name (`EngineTool.name`) to an explicit executable path.
   final Map<String, String> toolPaths;
 
+  /// Overrides the default engine manifest URL (self-hosted mirrors).
+  final String? engineManifestUrl;
+
+  /// Check the manifest at launch. Off by default: DocForge otherwise makes
+  /// no network requests at all.
+  final bool autoUpdateEngines;
+
   AppSettings copyWith({
     ThemeMode? themeMode,
     String? outputDirectory,
     bool clearOutputDirectory = false,
     Map<String, String>? toolPaths,
+    String? engineManifestUrl,
+    bool clearEngineManifestUrl = false,
+    bool? autoUpdateEngines,
   }) =>
       AppSettings(
         themeMode: themeMode ?? this.themeMode,
         outputDirectory: clearOutputDirectory ? null : (outputDirectory ?? this.outputDirectory),
         toolPaths: toolPaths ?? this.toolPaths,
+        engineManifestUrl: clearEngineManifestUrl
+            ? null
+            : (engineManifestUrl ?? this.engineManifestUrl),
+        autoUpdateEngines: autoUpdateEngines ?? this.autoUpdateEngines,
       );
 
   AppSettings withToolPath(EngineTool tool, String? path) {
@@ -45,6 +61,8 @@ class AppSettings {
         'theme': themeMode.name,
         'output': outputDirectory,
         'tools': toolPaths,
+        if (engineManifestUrl != null) 'engineManifest': engineManifestUrl,
+        if (autoUpdateEngines) 'autoUpdateEngines': true,
       };
 
   static AppSettings fromJson(Map<String, Object?> json) {
@@ -63,6 +81,8 @@ class AppSettings {
       themeMode: theme,
       outputDirectory: json['output'] as String?,
       toolPaths: tools,
+      engineManifestUrl: json['engineManifest'] as String?,
+      autoUpdateEngines: json['autoUpdateEngines'] == true,
     );
   }
 }

@@ -33,8 +33,15 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# Locally staged engine binaries (tool/stage_engines.ps1)
-/engines/
+# Locally staged engine binaries (tool/stage_engines.ps1) live in engines/.
+# The package *sources* below are tracked; everything else in engines/ is not.
+/engines/*
+!/engines/engines.json
+!/engines/README.md
+!/engines/scaffold/
+!/engines/qpdf/
+/engines/*/*
+!/engines/*/build.sh
 
 # Symbolication related
 app.*.symbols

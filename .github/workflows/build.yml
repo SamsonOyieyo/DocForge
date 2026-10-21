@@ -86,8 +86,12 @@ jobs:
           version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1 | cut -d+ -f1)
           echo "APP_VERSION=$version" >> "$GITHUB_ENV"
 
-      - name: Build release APK
-        run: flutter build apk --release --build-number "${{ github.run_number }}"
+      # Android deliberately ships NO downloadable native engines: API 29+
+      # refuses execve() on files in the app home directory, so QPDF/Poppler
+      # must be APK-native (FFI/jniLibs) while only scripts/data can be
+      # hot-swapped. See docs/ENGINES_OTA.md before adding a seed here.
+      - name: Build release APKs (one per ABI)
+        run: flutter build apk --release --split-per-abi --build-number "${{ github.run_number }}"
 
       - name: Build release app bundle
         run: flutter build appbundle --release --build-number "${{ github.run_number }}"
@@ -95,16 +99,35 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/DocForge-${APP_VERSION}.apk"
+          for apk in build/app/outputs/flutter-apk/app-*-release.apk; do
+            abi=$(basename "$apk" | sed 's/^app-//; s/-release\.apk$//')
+            cp "$apk" "dist/DocForge-${APP_VERSION}-${abi}.apk"
+          done
           cp build/app/outputs/bundle/release/app-release.aab "dist/DocForge-${APP_VERSION}.aab"
 
       # archive: false uploads the file as-is, so the artifact is the APK/AAB
-      # itself rather than a zip wrapping it. The file name becomes the
-      # artifact name.
-      - name: Upload APK
+      # itself rather than a zip wrapping it. One step per ABI keeps a single
+      # file per artifact (the action requires that when archive is false).
+      - name: Upload arm64 APK
         uses: actions/upload-artifact@v7
         with:
-          path: dist/*.apk
+          path: dist/*-arm64-v8a.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload armeabi-v7a APK
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-armeabi-v7a.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload x86_64 APK
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-x86_64.apk
           archive: false
           if-no-files-found: error
           retention-days: 14
@@ -136,6 +159,41 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # Desktop builds can bundle engine seeds (OTA then updates them). The
+      # manifest and packages come from the rolling `engines` release, so this
+      # step is skipped gracefully until the first engine release exists.
+      - name: Stage bundled engine seeds
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          manifest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/engines/engines_manifest.json"
+          if ! curl -fsSL "$manifest_url" -o "$RUNNER_TEMP/engines_manifest.json"; then
+            echo "::warning::No engine release yet; building with an empty seed manifest."
+            exit 0
+          fi
+          mkdir -p assets/engines
+          # Only the desktop packages this build actually seeds; the release
+          # also carries macOS/Linux/Android packaging artifacts.
+          gh release download engines \
+            --pattern 'qpdf-*-windows-x64.zip' \
+            --pattern 'scaffold-*-windows-x64.zip' \
+            --dir assets/engines \
+            --clobber || true
+          python tool/engines/manifest.py seeds \
+            --manifest "$RUNNER_TEMP/engines_manifest.json" \
+            --assets-dir assets/engines \
+            --output assets/engines/seeds.json \
+            --engines qpdf,scaffold \
+            --platforms windows-x64 \
+            --allow-missing || echo "::warning::Engine seeds could not be staged; the app will detect system installs only."
 
       - name: Read app version from pubspec
         shell: pwsh

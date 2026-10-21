@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Engine OTA updates download engine packages only. Documents never
+         leave the device. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="DocForge"
         android:name="${applicationName}"

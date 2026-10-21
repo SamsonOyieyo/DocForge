@@ -223,6 +223,9 @@ class _ToolPageState extends State<ToolPage> {
       outputName: outputName,
       toolPaths: app.toolkit.paths,
     );
+    final jobRequest = request.copyWith(
+      toolEnvironment: app.engineManager?.environment ?? const {},
+    );
 
     setState(() {
       _running = true;
@@ -238,7 +241,7 @@ class _ToolPageState extends State<ToolPage> {
       if (mounted) setState(() => _elapsed += 0.5);
     });
 
-    final handle = JobRunner.start(request);
+    final handle = JobRunner.start(jobRequest);
     _handle = handle;
     final runId = ++_runId;
     _subscription = handle.events.listen((event) {
@@ -254,7 +257,7 @@ class _ToolPageState extends State<ToolPage> {
       _runError = outcome.success ? null : outcome.message;
     });
     if (outcome.success) {
-      await app.recordJob(request, outcome);
+      await app.recordJob(jobRequest, outcome);
       if (mounted) _snack(outcome.message);
     }
     _scrollToResult();

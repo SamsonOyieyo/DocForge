@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'engines/engine_manager.dart';
 import 'engines/engine_tool.dart';
 import 'engines/toolkit.dart';
 import 'files.dart';
@@ -15,16 +17,28 @@ import 'settings.dart';
 class AppState extends ChangeNotifier {
   AppSettings _settings = const AppSettings();
   Toolkit _toolkit = Toolkit.empty;
+  EngineManager? _engineManager;
   List<HistoryEntry> _history = const [];
   List<String> _engineDirectories = const [];
+  List<String> _engineWarnings = const [];
+  List<EngineUpdate> _engineUpdates = const [];
+  String? _engineError;
   bool _detecting = false;
+  bool _checkingEngines = false;
+  bool _installingEngine = false;
   bool _initialized = false;
 
   AppSettings get settings => _settings;
   Toolkit get toolkit => _toolkit;
+  EngineManager? get engineManager => _engineManager;
   List<HistoryEntry> get history => _history;
   List<String> get engineDirectories => _engineDirectories;
+  List<String> get engineWarnings => _engineWarnings;
+  List<EngineUpdate> get engineUpdates => _engineUpdates;
+  String? get engineError => _engineError;
   bool get detecting => _detecting;
+  bool get checkingEngines => _checkingEngines;
+  bool get installingEngine => _installingEngine;
   bool get initialized => _initialized;
 
   List<HistoryEntry> get recentOutputs => _history.take(6).toList();
@@ -32,10 +46,47 @@ class AppState extends ChangeNotifier {
   Future<void> initialize() async {
     _settings = await SettingsStore.loadSettings();
     _history = await SettingsStore.loadHistory();
+    await _initializeEngineManager();
     _engineDirectories = await _resolveEngineDirectories();
     _initialized = true;
     notifyListeners();
     unawaited(refreshEngines());
+    if (_settings.autoUpdateEngines) unawaited(checkEngineUpdates());
+  }
+
+  /// Seeds bundled engines and restores the last installed versions.
+  ///
+  /// Failure here must never block the app: `Toolkit` still finds system
+  /// installs and the user can retry from Settings → Engines.
+  Future<void> _initializeEngineManager() async {
+    try {
+      final support = await getApplicationSupportDirectory();
+      final configured = _settings.engineManifestUrl?.trim();
+      final manager = EngineManager(
+        root: Directory(p.join(support.path, 'engines')),
+        manifestUrl: Uri.parse(
+          configured == null || configured.isEmpty
+              ? defaultEngineManifestUrl
+              : configured,
+        ),
+        loadSeedAsset: _loadSeedAsset,
+      );
+      await manager.initialize();
+      _engineManager = manager;
+      _engineWarnings = manager.warnings;
+    } catch (error) {
+      _engineWarnings = ['Engine manager unavailable: $error'];
+    }
+  }
+
+  static Future<Uint8List?> _loadSeedAsset(String path) async {
+    try {
+      final data = await rootBundle.load(path);
+      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } catch (_) {
+      // The build may not bundle this platform's seed.
+      return null;
+    }
   }
 
   Future<List<String>> _resolveEngineDirectories() async {
@@ -62,6 +113,7 @@ class AppState extends ChangeNotifier {
       _engineDirectories = await _resolveEngineDirectories();
       _toolkit = await Toolkit.detect(
         overrides: _settings.toolPaths,
+        managedPaths: _engineManager?.managedPaths ?? const {},
         searchDirectories: _engineDirectories,
       );
     } finally {
@@ -70,14 +122,57 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Fetches the engine manifest and lists newer packages.
+  Future<void> checkEngineUpdates() async {
+    final manager = _engineManager;
+    if (manager == null || _checkingEngines) return;
+    _checkingEngines = true;
+    _engineError = null;
+    notifyListeners();
+    try {
+      _engineUpdates = await manager.checkForUpdates();
+    } on EngineUpdateException catch (error) {
+      _engineError = error.message;
+    } catch (error) {
+      _engineError = 'Could not check for engine updates: $error';
+    } finally {
+      _checkingEngines = false;
+      notifyListeners();
+    }
+  }
+
+  /// Downloads, verifies and hot-swaps one engine, then rescans the toolkit.
+  Future<EngineUpdateResult?> applyEngineUpdate(EngineUpdate update) async {
+    final manager = _engineManager;
+    if (manager == null || _installingEngine) return null;
+    _installingEngine = true;
+    _engineError = null;
+    notifyListeners();
+    try {
+      final result = await manager.applyUpdate(update);
+      if (!result.success) {
+        _engineError = result.error;
+        return result;
+      }
+      _engineUpdates = manager.pendingUpdates.values.toList();
+      await refreshEngines();
+      return result;
+    } finally {
+      _installingEngine = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> updateSettings(AppSettings next) async {
     final enginePathsChanged =
         next.toolPaths.length != _settings.toolPaths.length ||
         next.toolPaths.entries.any((entry) => _settings.toolPaths[entry.key] != entry.value);
+    final autoUpdateEnabled = next.autoUpdateEngines && !_settings.autoUpdateEngines;
     _settings = next;
     notifyListeners();
     await SettingsStore.saveSettings(next);
     if (enginePathsChanged) unawaited(refreshEngines());
+    if (autoUpdateEnabled) unawaited(checkEngineUpdates());
   }
 
   Future<Directory> outputDirectory() =>

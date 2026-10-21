@@ -6,7 +6,8 @@ without uploading anything.
 
 DocForge is a Flutter front end around proven open-source engines: QPDF,
 Ghostscript, Poppler, Tesseract, LibreOffice and pdf2docx. Heavy work runs in a
-background isolate; the UI never blocks and never touches the network.
+background isolate; the UI never blocks. The only network request the app can
+make is the opt-in engine update check (documents and results are never sent).
 
 ## Features
 
@@ -35,7 +36,7 @@ background isolate; the UI never blocks and never touches the network.
 | Windows | QPDF (required for structural tools), plus optional Tesseract, Poppler, Ghostscript and LibreOffice |
 | macOS | `brew install qpdf ghostscript poppler tesseract` and `brew install --cask libreoffice` |
 | Linux | `sudo apt install qpdf ghostscript poppler-utils tesseract-ocr libreoffice-core` |
-| Android/iOS | UI builds, but engines are not bundled yet; see `docs/ENGINES.md` |
+| Android/iOS | UI builds. Android cannot exec downloaded binaries (API 29+), so engines must be APK-native/FFI or scripts; see `docs/ENGINES_OTA.md` |
 
 Only QPDF is needed for merge, split, extract, rotate, watermark, page numbers,
 protect, unlock, fast web view and repair. Missing optional engines disable only
@@ -102,6 +103,7 @@ docs/           architecture, engines/FFI roadmap, licensing
 
 - [Architecture](docs/ARCHITECTURE.md) — layers, job lifecycle, overlays, limits
 - [Engines](docs/ENGINES.md) — install, discovery, staging, FFI roadmap
+- [Engine packages & OTA](docs/ENGINES_OTA.md) — package format, manifest, release workflow, Android limits
 - [Licensing](docs/LICENSING.md) — AGPL/GPL implications and distribution profile
 
 ## Status

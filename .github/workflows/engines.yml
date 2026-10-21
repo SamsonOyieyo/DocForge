@@ -1,0 +1,194 @@
+# Builds, hashes and publishes DocForge engine packages, then updates the
+# manifest the app polls for OTA engine updates.
+#
+# Pipeline
+#   engines/engines.json ──► matrix.py ──► matrix job (os × target)
+#        └─ engines/<id>/build.sh <target> <outdir>   (compile or stage)
+#        └─ tool/engines/package.py                   (zip + SHA-256 + meta)
+#   all packages ──► tool/engines/manifest.py merge ──► engines_manifest.json
+#   ──► rolling GitHub release tagged `engines`
+#
+# The manifest URL stays stable because assets are re-uploaded to the same tag:
+#   https://github.com/<owner>/<repo>/releases/download/engines/engines_manifest.json
+#
+# Adding an engine:
+#   1. engines/<id>/build.sh writes `bin/<id>` (+ libraries/resources).
+#   2. Add `{ version, license, runtimes, targets }` to engines/engines.json.
+#   3. Run this workflow (Actions → Engine packages → Run workflow).
+name: Engine packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      engines:
+        description: Comma-separated engine ids from engines/engines.json, or "all"
+        default: all
+        required: false
+      targets:
+        description: Comma-separated targets (blank uses the registry)
+        default: ""
+        required: false
+      version:
+        description: Override the registry version for every selected engine
+        default: ""
+        required: false
+  push:
+    tags: ["engine-v*"]
+
+# Read-only by default; the publish job escalates to write.
+permissions:
+  contents: read
+
+# Manifest merges must never run concurrently or one run would drop the other
+# run's engines from the rolling manifest.
+concurrency:
+  group: engine-packages
+  cancel-in-progress: false
+
+env:
+  MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/engines/engines_manifest.json
+  RELEASE_TAG: engines
+
+jobs:
+  prepare:
+    name: Plan matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Read the engine registry
+        id: plan
+        env:
+          ENGINES: ${{ github.event.inputs.engines || 'all' }}
+          TARGETS: ${{ github.event.inputs.targets || '' }}
+          VERSION: ${{ github.event.inputs.version || '' }}
+        run: |
+          matrix=$(python3 tool/engines/matrix.py \
+            --engines "$ENGINES" \
+            --targets "$TARGETS" \
+            --version "$VERSION")
+          count=$(printf '%s' "$matrix" | python3 -c \
+            'import json, sys; print(len(json.load(sys.stdin)["include"]))')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.engine }} · ${{ matrix.target }}
+    needs: prepare
+    if: needs.prepare.outputs.count != '0'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build engine package
+        shell: bash
+        env:
+          ENGINE_VERSION: ${{ matrix.version }}
+        run: |
+          bash "engines/${{ matrix.engine }}/build.sh" \
+            "${{ matrix.target }}" \
+            "staging/${{ matrix.engine }}"
+
+      - name: Package and hash
+        shell: bash
+        run: |
+          python tool/engines/package.py \
+            --engine "${{ matrix.engine }}" \
+            --version "${{ matrix.version }}" \
+            --target "${{ matrix.target }}" \
+            --input "staging/${{ matrix.engine }}" \
+            --output dist \
+            --license "${{ matrix.license }}" \
+            --runtimes "${{ matrix.runtimes }}"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: engine-${{ matrix.engine }}-${{ matrix.target }}
+          path: |
+            dist/*.zip
+            dist/*.meta.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish rolling release and manifest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download packages
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+          pattern: engine-*
+          merge-multiple: true
+
+      - name: Fetch the previous manifest
+        run: |
+          mkdir -p previous
+          curl -fsSL "$MANIFEST_URL" -o previous/engines_manifest.json \
+            || echo "::notice::No previous engine release; creating the first manifest."
+
+      - name: Merge packages into the manifest
+        run: |
+          python tool/engines/manifest.py merge \
+            --dist dist \
+            --existing previous/engines_manifest.json \
+            --output dist/engines_manifest.json \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}"
+
+      - name: Publish the rolling engines release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 \
+            || gh release create "$RELEASE_TAG" \
+                 --title "Engine packages" \
+                 --notes "Rolling release for DocForge engine packages. CI updates the manifest in place; the download URL never changes." \
+                 --latest=false
+          gh release upload "$RELEASE_TAG" dist/*.zip dist/engines_manifest.json --clobber
+
+      - name: Summarize published engines
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          manifest = json.loads(pathlib.Path("dist/engines_manifest.json").read_text())
+          lines = [
+              "| Engine | Manifest version | Platforms |",
+              "| --- | --- | --- |",
+          ]
+          for name, release in sorted(manifest["engines"].items()):
+              platforms = ", ".join(sorted(release.get("assets", {})))
+              lines.append(f"| `{name}` | {release.get('version', '?')} | {platforms} |")
+          summary = pathlib.Path(os.environ["GITHUB_STEP_SUMMARY"])
+          summary.write_text("\n".join(lines) + "\n")
+          PY

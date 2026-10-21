@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "engines": {
+    "scaffold": {
+      "version": "1.0.0",
+      "license": "MIT",
+      "runtimes": ["process"],
+      "targets": [
+        "windows-x64",
+        "linux-x64",
+        "macos-x64",
+        "macos-arm64",
+        "android-arm64-v8a",
+        "android-armeabi-v7a",
+        "android-x86_64"
+      ]
+    }
+  }
+}

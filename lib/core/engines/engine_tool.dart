@@ -8,7 +8,7 @@ import 'dart:io';
 enum EngineTool { qpdf, ghostscript, tesseract, pdftoppm, libreoffice, pdf2docx }
 
 /// Where a resolved executable was found.
-enum EngineSource { missing, override, bundled, path, knownLocation }
+enum EngineSource { missing, override, managed, bundled, path, knownLocation }
 
 class EngineStatus {
   const EngineStatus({

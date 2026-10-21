@@ -61,6 +61,7 @@ class _Session {
   }
 
   Future<void> run() async {
+    setEngineEnvironment(request.toolEnvironment);
     Directory(outputDirectory).createSync(recursive: true);
     final options = request.options;
     switch (request.kind) {

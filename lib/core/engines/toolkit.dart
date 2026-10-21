@@ -8,9 +8,10 @@ import 'engine_tool.dart';
 ///
 /// Resolution order per engine:
 ///   1. explicit override from Settings
-///   2. a bundled binary next to the app (`<app>/engines`) or in app support
-///   3. `PATH`
-///   4. well-known install locations for the platform
+///   2. a managed engine installed by [EngineManager] (OTA or seed)
+///   3. a bundled binary next to the app (`<app>/engines`) or in app support
+///   4. `PATH`
+///   5. well-known install locations for the platform
 class Toolkit {
   Toolkit._(this._status);
 
@@ -53,6 +54,7 @@ class Toolkit {
 
   static Future<Toolkit> detect({
     Map<String, String> overrides = const {},
+    Map<String, String> managedPaths = const {},
     List<String> searchDirectories = const [],
   }) async {
     final pathDirs = _pathDirectories();
@@ -77,6 +79,23 @@ class Toolkit {
             tool: tool,
             source: EngineSource.override,
             error: 'Configured path does not exist',
+          );
+        }
+
+        final managed = managedPaths[tool.name]?.trim();
+        if (managed != null && managed.isNotEmpty) {
+          if (File(managed).existsSync()) {
+            return EngineStatus(
+              tool: tool,
+              path: managed,
+              source: EngineSource.managed,
+              version: await _probeVersion(tool, managed),
+            );
+          }
+          return EngineStatus(
+            tool: tool,
+            source: EngineSource.managed,
+            error: 'The managed engine package is missing or incomplete',
           );
         }
 

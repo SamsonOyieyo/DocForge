@@ -41,9 +41,11 @@ For a closed-source desktop build:
 
 ## AGPL and “network use”
 
-DocForge is offline by design, so the AGPL network clause should not be
-triggered by the app itself. If a future version exposes a local HTTP API that
-drives Ghostscript, review the AGPL obligations before shipping.
+DocForge does not run a network service, so the AGPL network clause should not
+be triggered by the app itself. The opt-in engine updater only downloads engine
+packages; it never receives documents or results. If a future version exposes a
+local HTTP API that drives Ghostscript, review the AGPL obligations before
+shipping.
 
 ## Notices in the app
 
