@@ -12,8 +12,8 @@ void main() {
     test('parses the installer and checksum assets', () {
       final release = AppRelease.fromGitHubJson(_releaseJson());
 
-      expect(release.version, '1.0.1');
-      expect(release.assetName, 'DocForge-Setup-1.0.1.exe');
+      expect(release.version, _nextVersion);
+      expect(release.assetName, _nextInstaller);
       expect(release.assetSize, 1234);
       expect(release.checksumsUrl.toString(), contains('SHA256SUMS.txt'));
       expect(release.notes, 'Bug fixes.');
@@ -38,9 +38,9 @@ void main() {
       final json = _releaseJson(
         assets: [
           _asset(
-            'DocForge-Setup-1.0.1.exe',
+            _nextInstaller,
             'application/octet-stream',
-            url: 'https://example.com/DocForge-Setup-1.0.1.exe',
+            url: 'https://example.com/$_nextInstaller',
           ),
         ],
       );
@@ -82,7 +82,7 @@ void main() {
         texts: {
           AppInfo.releaseListApi: jsonEncode([
             _releaseJson(tag: 'engines'),
-            _releaseJson(tag: 'v1.0.1'),
+            _releaseJson(tag: _nextTag),
           ]),
         },
       );
@@ -90,7 +90,7 @@ void main() {
       final release = await AppUpdateService(transport: transport)
           .latestRelease();
 
-      expect(release?.version, '1.0.1');
+      expect(release?.version, _nextVersion);
     });
 
     test('skips legacy releases that have no installer', () async {
@@ -98,7 +98,7 @@ void main() {
         texts: {
           AppInfo.releaseListApi: jsonEncode([
             _releaseJson(tag: 'v0.0.2', assets: const <Map<String, Object?>>[]),
-            _releaseJson(tag: 'v1.0.1'),
+            _releaseJson(tag: _nextTag),
           ]),
         },
       );
@@ -106,7 +106,7 @@ void main() {
       final release = await AppUpdateService(transport: transport)
           .latestRelease();
 
-      expect(release?.version, '1.0.1');
+      expect(release?.version, _nextVersion);
     });
 
     test('returns null when only asset-less releases exist', () async {
@@ -135,12 +135,12 @@ void main() {
             _releaseJson(installerSize: bytes.length),
           ]),
           'https://github.com/${AppInfo.repository}/releases/download/'
-                  'v1.0.1/SHA256SUMS.txt':
-              '${sha256.convert(bytes)}  DocForge-Setup-1.0.1.exe\n',
+                  '$_nextTag/SHA256SUMS.txt':
+              '${sha256.convert(bytes)}  $_nextInstaller\n',
         },
         fileBytes: {
           'https://github.com/${AppInfo.repository}/releases/download/'
-                  'v1.0.1/DocForge-Setup-1.0.1.exe':
+                  '$_nextTag/$_nextInstaller':
               bytes,
         },
       );
@@ -159,7 +159,7 @@ void main() {
 
       expect(await installer.readAsBytes(), bytes);
       expect(progressCalls, greaterThan(0));
-      expect(installer.path, endsWith('DocForge-Setup-1.0.1.exe'));
+      expect(installer.path, endsWith(_nextInstaller));
     });
 
     test('rejects an installer with the wrong checksum', () async {
@@ -169,12 +169,12 @@ void main() {
       final transport = _FakeTransport(
         texts: {
           'https://github.com/${AppInfo.repository}/releases/download/'
-                  'v1.0.1/SHA256SUMS.txt':
-              '${repeat('0', 64)}  DocForge-Setup-1.0.1.exe\n',
+                  '$_nextTag/SHA256SUMS.txt':
+              '${repeat('0', 64)}  $_nextInstaller\n',
         },
         fileBytes: {
           'https://github.com/${AppInfo.repository}/releases/download/'
-              'v1.0.1/DocForge-Setup-1.0.1.exe': utf8.encode(
+              '$_nextTag/$_nextInstaller': utf8.encode(
             'tampered',
           ),
         },
@@ -201,12 +201,12 @@ void main() {
       final transport = _FakeTransport(
         texts: {
           'https://github.com/${AppInfo.repository}/releases/download/'
-                  'v1.0.1/SHA256SUMS.txt':
-              '${repeat('0', 64)}  DocForge-Setup-1.0.1.exe\n',
+                  '$_nextTag/SHA256SUMS.txt':
+              '${repeat('0', 64)}  $_nextInstaller\n',
         },
         fileBytes: {
           'https://github.com/${AppInfo.repository}/releases/download/'
-              'v1.0.1/DocForge-Setup-1.0.1.exe': utf8.encode(
+              '$_nextTag/$_nextInstaller': utf8.encode(
             'short',
           ),
         },
@@ -256,7 +256,7 @@ void main() {
 
       await state.checkForAppUpdate();
 
-      expect(state.availableAppUpdate?.version, '1.0.1');
+      expect(state.availableAppUpdate?.version, _nextVersion);
       expect(state.checkingAppUpdate, isFalse);
       expect(state.appUpdateError, isNull);
     });
@@ -302,20 +302,38 @@ void main() {
 
 String repeat(String value, int count) => List.filled(count, value).join();
 
+/// The next patch release after the installed build, so fixture releases
+/// always exercise the "newer version" path regardless of the app version.
+final _nextVersion = _bumpPatch(AppInfo.version);
+final _nextTag = 'v$_nextVersion';
+final _nextInstaller = 'DocForge-Setup-$_nextVersion.exe';
+
+String _bumpPatch(String version) {
+  final parts = version.split('.');
+  final patch = parts.length == 3 ? int.tryParse(parts[2]) : null;
+  if (patch == null) return '999.0.0';
+  return '${parts[0]}.${parts[1]}.${patch + 1}';
+}
+
 Map<String, Object?> _releaseJson({
-  String tag = 'v1.0.1',
+  String? tag,
   List<Map<String, Object?>>? assets,
   int installerSize = 1234,
 }) {
+  final releaseTag = tag ?? _nextTag;
+  final releaseVersion = releaseTag.startsWith('v')
+      ? releaseTag.substring(1)
+      : releaseTag;
   final installer = _asset(
-    'DocForge-Setup-1.0.1.exe',
+    'DocForge-Setup-$releaseVersion.exe',
     'application/octet-stream',
     size: installerSize,
   );
   final sums = _asset('SHA256SUMS.txt', 'text/plain', size: 96);
   return {
-    'tag_name': tag,
-    'html_url': 'https://github.com/${AppInfo.repository}/releases/tag/$tag',
+    'tag_name': releaseTag,
+    'html_url':
+        'https://github.com/${AppInfo.repository}/releases/tag/$releaseTag',
     'body': '  Bug fixes.  ',
     'published_at': '2026-10-20T10:00:00Z',
     'assets': assets ?? [installer, sums],
@@ -335,7 +353,7 @@ Map<String, Object?> _asset(
     'browser_download_url':
         url ??
         'https://github.com/${AppInfo.repository}/releases/download/'
-            'v1.0.1/$name',
+            '$_nextTag/$name',
   };
 }
 
