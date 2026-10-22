@@ -108,7 +108,12 @@ final List<ToolDefinition> toolRegistry = [
       outputDirectory: outputDirectory,
       outputName: outputName,
       toolPaths: toolPaths,
-      options: {'mode': values['mode'], 'every': values['every'], 'ranges': values['ranges']},
+      options: {
+        'mode': values['mode'],
+        'every': values['every'],
+        'ranges': values['ranges'],
+        'pageCount': values['pageCount'],
+      },
     ),
   ),
   ToolDefinition(
@@ -143,7 +148,10 @@ final List<ToolDefinition> toolRegistry = [
       outputDirectory: outputDirectory,
       outputName: outputName,
       toolPaths: toolPaths,
-      options: {'pages': values['pages']},
+      options: {
+        'pages': values['pages'],
+        'pageCount': values['pageCount'],
+      },
     ),
   ),
   ToolDefinition(
@@ -191,6 +199,7 @@ final List<ToolDefinition> toolRegistry = [
       options: {
         'angle': int.tryParse('${values['angle']}') ?? 90,
         'pages': values['pages'],
+        'pageCount': values['pageCount'],
       },
     ),
   ),
