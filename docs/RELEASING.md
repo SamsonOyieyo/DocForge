@@ -163,6 +163,11 @@ Signing does not change the installer layout; it only removes the warning.
 
 - [ ] `python tool/bump_version.py <version>` (patch or minor as appropriate)
 - [ ] Update user-facing notes / README if behaviour changed
+- [ ] Smoke-test the Reader with representative PDF, EPUB, DOCX, XLSX, PPTX and
+      CSV files; check search, contents, bookmarks, highlights, saved position
+      and quick actions
+- [ ] For reader/Office changes, test once without optional engines and once
+      with LibreOffice installed (exact-layout flow)
 - [ ] `flutter analyze` and `flutter test` pass
 - [ ] Commit, tag `v<version>`, push `main` and the tag
 - [ ] Wait for the **Publish GitHub release** job

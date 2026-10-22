@@ -331,7 +331,7 @@ class _QuickActions extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        _QuickChip(icon: Icons.visibility_outlined, label: 'Open a PDF', onTap: onOpen),
+        _QuickChip(icon: Icons.menu_book_outlined, label: 'Open a document', onTap: onOpen),
         _QuickChip(icon: Icons.merge_type_rounded, label: 'Merge files', onTap: onMerge),
         _QuickChip(icon: Icons.compress_rounded, label: 'Compress', onTap: onCompress),
       ],

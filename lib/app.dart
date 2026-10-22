@@ -44,7 +44,7 @@ class _AppShellState extends State<AppShell> {
 
   static const _destinations = [
     (icon: Icons.grid_view_rounded, selected: Icons.grid_view_rounded, label: 'Tools'),
-    (icon: Icons.picture_as_pdf_outlined, selected: Icons.picture_as_pdf_rounded, label: 'Viewer'),
+    (icon: Icons.menu_book_outlined, selected: Icons.menu_book_rounded, label: 'Reader'),
     (icon: Icons.history_rounded, selected: Icons.history_rounded, label: 'History'),
     (icon: Icons.settings_outlined, selected: Icons.settings_rounded, label: 'Settings'),
   ];

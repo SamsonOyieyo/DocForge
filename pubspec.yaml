@@ -16,8 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.2+3
-
+version: 1.1.0+4
 environment:
   sdk: ^3.13.0
 
@@ -41,6 +40,8 @@ dependencies:
   # Engine packaging: zip extraction plus checksum verification for the OTA
   # engine layer (lib/core/engines/engine_installer.dart).
   archive: ^4.0.9
+  # EPUB/OOXML parsing (XHTML, OPF, DOCX, XLSX, PPTX).
+  xml: ^6.6.1
   crypto: ^3.0.7
   # Pinned: image 4.11.0 calls ZLibDecoder.decodeLazy (archive >= 4.1.0),
   # while pdf 3.12 constrains archive to < 4.1.0. Lift this pin once pdf

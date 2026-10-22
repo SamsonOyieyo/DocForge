@@ -7,7 +7,7 @@ class AppInfo {
   const AppInfo._();
 
   static const String name = 'DocForge';
-  static const String version = '1.0.2';
+  static const String version = '1.1.0';
   static const String platform = 'Windows';
 
   static const String repository = 'SamsonOyieyo/DocForge';

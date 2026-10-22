@@ -8,7 +8,7 @@ in a background isolate and every document mutation is delegated to an external
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ Presentation                                                 │
-│  app.dart / home / tool_page / history / settings            │
+│  app.dart / home / reader / tool_page / history / settings   │
 │  declarative ToolDefinition registry → generic ToolPage      │
 └───────────────────────────┬──────────────────────────────────┘
                             │ JobRequest (plain data)
@@ -42,8 +42,10 @@ in a background isolate and every document mutation is delegated to an external
    in Settings → About DocForge (GitHub Releases metadata, the installer and
    its checksum file). `autoUpdateEngines` defaults to off on a fresh install,
    and app update checks only run when the user clicks the button.
-2. **The UI thread never parses or writes documents.** Page-count probing is
-   the only exception and uses `pdfrx` asynchronously for small files.
+2. **The UI thread never parses or writes documents.** Reader parsing runs in
+   top-level isolate helpers so widget state never crosses an isolate boundary.
+   Page-count probing is the only exception and uses `pdfrx` asynchronously for
+   small files.
 3. **Jobs are serializable.** `JobRequest` contains strings, numbers, lists and
    maps only, so it can cross an isolate boundary without `SendPort` tricks.
 4. **Engines are replaceable.** The job layer knows engine *names*, not
@@ -135,6 +137,37 @@ Current tools: merge, split, extract, rotate, watermark, page numbers, compress,
 Office → PDF, PDF → Word, PDF → images, images → PDF, OCR, protect, unlock,
 fast web view, repair.
 
+## Reader and annotations
+
+`lib/features/viewer/viewer_page.dart` is the single reader shell for every
+supported format. It keeps the chrome compact and sends format-specific work to
+a small set of views:
+
+| Format | Renderer | Notes |
+| --- | --- | --- |
+| PDF | `pdfrx` / PDFium | Text search, page navigation, page bookmarks, selectable-text highlights and notes. |
+| EPUB, FictionBook, CBZ, TXT, Markdown, HTML, DOCX | Native Dart parsers in `core/reader/` | Chapters, covers, images, tables, book search, highlights and notes. ZIP/XML is read with `archive` + `xml`; no new conversion engine is bundled. |
+| CSV/TSV, XLSX | `SheetReader` | Sheet switching, filtering, sticky headers and row/column labels. |
+| PPTX | `SlideReader` | Paged slide cards with titles, bullets and images. |
+| DOC/XLS/PPT/ODT/ODS/ODP/RTF | Optional LibreOffice | Native preview is not attempted; the reader offers a local exact-layout PDF conversion. |
+
+`ReaderStore` persists per-document positions, bookmarks, PDF and book
+highlights, recent files and typography in one JSON file in the app support
+folder. Windows paths are normalised and compared case-insensitively; a missing
+plugin or read-only profile degrades to an in-memory store rather than breaking
+the reader.
+
+Quick actions are deliberately not another toolbar. The reader opens one
+compact bottom sheet that lists only tools accepting the current file, with the
+file already selected. PDF and office conversions use the normal `ToolPage` and
+`JobRunner`; nothing bypasses the audited command builders. PDF annotations are
+painted above page content, while search hits are painted above saved
+highlights.
+
+Book parsing runs through `_parseBookInIsolate`, `_parseWorkbookInIsolate` and
+`_parseSlidesInIsolate` in `viewer_page.dart`. These helpers stay top-level so
+closures capture only strings/enums, never `State` objects or timers.
+
 ## Job lifecycle
 
 1. `ToolPage` resolves the output folder, derives a collision-free output name,
@@ -224,9 +257,11 @@ used by overlays.
 
 - `flutter test` — unit tests for commands, page ranges, settings, version
   agreement, the app updater (release parsing, legacy/engine release skipping,
-  SHA-256 verification) and the engine manager (seed extraction, checksum
-  rejection, hot-swap, rollback, Android guard), plus widget tests for the
-  desktop/phone shell and narrow tool/settings layouts.
+  SHA-256 verification), the engine manager (seed extraction, checksum
+  rejection, hot-swap, rollback, Android guard), reader parsers (EPUB, FB2,
+  CBZ, Markdown/HTML, DOCX/XLSX/PPTX/CSV), reader persistence and annotations,
+  plus widget tests for the desktop/phone shell, reader views and narrow
+  tool/settings layouts.
 - `dart run tool/make_samples.dart` — deterministic sample PDFs.
 - `dart run tool/smoke_test.dart` — runs the real `JobRunner` for every
   available engine and validates outputs with QPDF (`--check`,

@@ -18,9 +18,16 @@ import 'tool_definition.dart';
 
 /// Generic tool screen driven by a [ToolDefinition].
 class ToolPage extends StatefulWidget {
-  const ToolPage({super.key, required this.definition});
+  const ToolPage({
+    super.key,
+    required this.definition,
+    this.initialPaths = const [],
+  });
 
   final ToolDefinition definition;
+
+  /// Files preselected by the reader's quick-action menu.
+  final List<String> initialPaths;
 
   @override
   State<ToolPage> createState() => _ToolPageState();
@@ -66,6 +73,16 @@ class _ToolPageState extends State<ToolPage> {
           _values[field.key] = _controllers[field.key]!.text;
           setState(() {});
         });
+    }
+    if (widget.initialPaths.isNotEmpty) {
+      _files.addAll(
+        widget.initialPaths.take(
+          _definition.multi ? widget.initialPaths.length : 1,
+        ),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadInfo();
+      });
     }
   }
 

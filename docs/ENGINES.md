@@ -38,6 +38,12 @@ Last audit: 2026-10-22. Windows 10+ x64 only.
 | **ExifTool** | Candidate metadata tool | **Reject** | — |
 | **ImageMagick** | Candidate raster/image tool | **Reject** | — |
 
+Reader previews deliberately add **no engine**. EPUB/FB2/CBZ/TXT/Markdown/HTML/
+DOCX/XLSX/PPTX/CSV are parsed with Dart packages already in the app; PDF
+rendering uses the existing PDFium build. LibreOffice remains optional and is
+used only when the user asks for an exact-layout PDF of a legacy/OpenDocument
+file.
+
 ### The pdf2docx question
 
 **Keep pdf2docx.** The Artifex notice is about *active development*, not
@@ -284,7 +290,8 @@ would dwarf the app.
 
 **Integration:** an isolated `-env:UserInstallation` profile avoids conflicts
 with a running desktop LibreOffice. PDF → Word prefers pdf2docx and falls back
-to `--infilter=writer_pdf_import`.
+to `--infilter=writer_pdf_import`. The reader reuses the Office → PDF job for
+the optional **Open exact layout as PDF** action on legacy/OpenDocument files.
 
 ---
 
@@ -365,7 +372,10 @@ free engine exists. The integration changed:
 | OCR / searchable PDF | Tesseract + (Poppler or Ghostscript) + QPDF | Offline OCR; per-page PDFs are merged with QPDF. |
 | Office → PDF | LibreOffice (headless) | Widest format coverage (DOCX, XLSX, PPTX, ODT, HTML…). |
 | PDF → Word | pdf2docx if installed, else LibreOffice (`writer_pdf_import`) | pdf2docx reconstructs layout better; LibreOffice is the fallback. |
-| PDF viewing / page geometry | PDFium via `pdfrx` | Already bundled by Flutter; no external install. |
+| PDF viewing, search, page geometry and annotations | PDFium via `pdfrx` | Already bundled by Flutter; no external install. Search and highlight rectangles come from PDFium. |
+| EPUB / FictionBook / CBZ / TXT / Markdown / HTML / DOCX reading | Pure Dart (`archive` + `xml`) | Local parsing with no new runtime; conversion and editing still use the normal engines. |
+| CSV/TSV / XLSX / PPTX reading | Pure Dart delimited and OOXML parsers | Bounded row/sheet previews; no spreadsheet or slide renderer is bundled. |
+| Exact-layout Office / OpenDocument reading | LibreOffice (optional) | Converts to PDF locally, then opens in the reader. Native parsing is used when LibreOffice is absent. |
 
 ## 7. Health checks and expected locations
 

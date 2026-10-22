@@ -1,7 +1,8 @@
 # DocForge
 
-Private, on-device PDF and document tools for Windows. Merge, split, rotate,
-watermark, compress, OCR, convert and protect files without uploading anything.
+Private, on-device PDF and document toolkit for Windows. Read PDFs, EPUB books,
+comics, Markdown and office files; annotate, convert, merge, split, OCR and
+protect them without uploading anything.
 
 DocForge is a Flutter front end around proven open-source engines: QPDF,
 Ghostscript, Poppler, Tesseract, LibreOffice and pdf2docx. Heavy work runs in a
@@ -32,13 +33,36 @@ the first run (**More info → Run anyway**). Code signing is documented in
 
 | Category | Tools |
 | --- | --- |
+| Read | Unified reader for PDF, EPUB/FictionBook/comics, text/Markdown/HTML, Word, Excel, PowerPoint and CSV — contents, search, bookmarks, highlights, notes, saved positions, typography and reading palettes |
 | Organise | Merge, split (every N pages or per range), extract/reorder pages, rotate |
 | Polish | Watermark, page numbers |
 | Optimise | Compress with Ghostscript presets, linearize for fast web view, repair |
-| Convert | Office → PDF (DOCX/XLSX/PPTX/ODT/HTML), PDF → Word, PDF → images, images → PDF |
+| Convert | Quick actions for the open file; Office → PDF (DOCX/XLSX/PPTX/ODT/HTML), PDF → Word, PDF → images, images → PDF |
 | Recognise | OCR with Tesseract, producing a searchable PDF text layer |
 | Protect | AES-256 encryption, remove passwords (with the password) |
-| View | Built-in PDF viewer, page counts and page-size-aware overlays |
+| Inspect | Page counts and page-size-aware overlays |
+
+## Reader
+
+The Reader is the front door for any supported file. Open it from the Reader
+tab, the file picker, or a recent document.
+
+- **PDF** — PDFium rendering, text search, page navigation, a saved page,
+  bookmarks, and selectable-text highlights with optional notes.
+- **Books** — EPUB 2/3, FictionBook, CBZ comics, TXT, Markdown, HTML and DOCX
+  are parsed locally, with chapter contents, covers, images, tables, book
+  search, highlights and notes.
+- **Spreadsheets** — CSV/TSV and XLSX open as filterable grids with sheet
+  switching, sticky headers and row/column labels.
+- **Slides** — PPTX opens as a paged deck with titles, bullets and images.
+- **Reading comfort** — text size, line spacing, page width and
+  system/paper/sepia/night palettes. Positions, bookmarks, highlights and
+  preferences persist per document.
+- **Quick actions** — a compact sheet offers the relevant one-tap tool with the
+  current file already selected. Legacy and OpenDocument formats can use an
+  optional local LibreOffice engine to produce an exact-layout PDF.
+
+Reader state is stored locally in the app support folder. Nothing is uploaded.
 
 ## Privacy
 
@@ -65,7 +89,7 @@ immediately. Missing optional engines disable only the tools that need them and
 show install hints in Settings. The full decision record, licences and sizes are
 in [`docs/ENGINES.md`](docs/ENGINES.md).
 
-Windows is the only supported release target at the moment (version 1.0.0).
+Windows is the only supported release target at the moment (version 1.1.0).
 macOS, Linux and mobile sources remain in the tree but are not being developed
 or released while DocForge focuses on Windows.
 
@@ -140,10 +164,12 @@ lib/
     engines/    discovery, version probes, streamed process runner
     jobs/       JobRequest/JobEvent, isolate runner, engine pipelines
     pdf/        pure command builders, page ranges, overlay generation
+    reader/     format detection, EPUB/office parsers, reader state
     app_state.dart, app_info.dart, app_update.dart, version.dart,
     files.dart, history.dart, settings.dart
   features/
     home/       search, categories, engine status
+    viewer/     unified reader, PDF/book/sheet/slide views, quick actions
     tool/       declarative registry + generic tool page
     history/    recent outputs
     settings/   theme, output folder, engine overrides, diagnostics, updates
@@ -163,10 +189,12 @@ docs/           architecture, engines/FFI roadmap, licensing, releasing
 
 ## Status
 
-DocForge 1.0.0 is the first Windows release. The app analyzes cleanly, the test
-suite covers the update/version logic plus desktop and phone layouts, and all
-desktop pipelines are verified end-to-end with the native engines. QPDF now
-ships with the Windows installer; Ghostscript, Poppler, Tesseract, LibreOffice
-and pdf2docx remain optional or user-provided (see `docs/ENGINES.md`). Mobile
-support is paused until bundled FFI engines (QPDF, PDFium, Tesseract) are
-available.
+DocForge 1.1.0 adds the unified local reader: PDF search and annotations,
+native EPUB/book/comic previews, spreadsheet and slide views, persistent
+reading positions, typography, and quick conversions. The app analyzes cleanly,
+the test suite covers parsers, reader persistence, annotations, version logic
+and desktop/phone layouts, and all desktop pipelines are verified end-to-end
+with the native engines. QPDF ships with the Windows installer; Ghostscript,
+Poppler, Tesseract, LibreOffice and pdf2docx remain optional or user-provided
+(see `docs/ENGINES.md`). Mobile support is paused until bundled FFI engines
+(QPDF, PDFium, Tesseract) are available.
