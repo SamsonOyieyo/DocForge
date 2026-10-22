@@ -5,8 +5,10 @@
 
 .DESCRIPTION
   Copies QPDF, Tesseract and Poppler next to the executables that DocForge
-  scans at startup. Ghostscript and LibreOffice are intentionally not staged:
-  they depend on large resource trees and installers.
+  scans at startup. Release builds normally use tool/bundle_qpdf.ps1 for the
+  pinned QPDF runtime; this script is for staging optional engines from an
+  existing installation or for portable builds. Ghostscript and LibreOffice are
+  intentionally not staged: they depend on large resource trees and installers.
 
 .PARAMETER Destination
   Target folder. Defaults to `<repo>\engines`. For a release build use
@@ -29,6 +31,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$repo = Split-Path -Parent $PSScriptRoot
 $destinationPath = [IO.Path]::GetFullPath($Destination)
 New-Item -ItemType Directory -Force -Path $destinationPath | Out-Null
 
@@ -94,6 +97,10 @@ function Stage-Qpdf {
   $sourceDirectory = Split-Path $exe -Parent
   Copy-Item $exe -Destination $Target -Force
   Copy-Dlls -SourceDirectory $sourceDirectory -Target $Target
+  $notices = Join-Path $repo 'third_party\qpdf'
+  if (Test-Path -LiteralPath $notices) {
+    Copy-Item -Path (Join-Path $notices '*') -Destination $Target -Force
+  }
   return Assert-Engine (Join-Path $Target 'qpdf.exe') @('--version')
 }
 

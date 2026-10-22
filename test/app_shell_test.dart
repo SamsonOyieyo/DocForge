@@ -71,6 +71,30 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('engine details dialog fits a narrow screen', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      AppScope(
+        state: AppState(),
+        child: const MaterialApp(home: SettingsPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final details = find.text('Details').first;
+    await tester.ensureVisible(details);
+    await tester.pumpAndSettle();
+    await tester.tap(details);
+    await tester.pumpAndSettle();
+
+    expect(find.text('QPDF engine'), findsOneWidget);
+    expect(find.text('Health check'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('option-heavy tool fits a narrow screen', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;

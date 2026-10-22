@@ -13,6 +13,11 @@ about what Android actually allows.
 - Manifest URL:
   `https://github.com/SamsonOyieyo/DocForge/releases/download/engines/engines_manifest.json`
 
+> **Windows today:** the shipped installer bundles QPDF directly through
+> `tool/bundle_qpdf.ps1`, and `assets/engines/seeds.json` is empty. The OTA
+> registry below is the path for additional engines and for updating QPDF
+> without a new app build; see [`ENGINES.md`](ENGINES.md) section 9.
+
 ---
 
 ## 1. The Android reality (read this first)

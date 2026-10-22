@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -68,12 +69,7 @@ class Toolkit {
         final override = overrides[tool.name]?.trim();
         if (override != null && override.isNotEmpty) {
           if (File(override).existsSync()) {
-            return EngineStatus(
-              tool: tool,
-              path: override,
-              source: EngineSource.override,
-              version: await _probeVersion(tool, override),
-            );
+            return _resolved(tool, override, EngineSource.override);
           }
           return EngineStatus(
             tool: tool,
@@ -85,12 +81,7 @@ class Toolkit {
         final managed = managedPaths[tool.name]?.trim();
         if (managed != null && managed.isNotEmpty) {
           if (File(managed).existsSync()) {
-            return EngineStatus(
-              tool: tool,
-              path: managed,
-              source: EngineSource.managed,
-              version: await _probeVersion(tool, managed),
-            );
+            return _resolved(tool, managed, EngineSource.managed);
           }
           return EngineStatus(
             tool: tool,
@@ -101,23 +92,17 @@ class Toolkit {
 
         final bundled = _find(tool, searchDirectories);
         if (bundled != null) {
-          return EngineStatus(
-            tool: tool,
-            path: bundled.path,
-            source: EngineSource.bundled,
-            version: await _probeVersion(tool, bundled.path),
-          );
+          return _resolved(tool, bundled.path, EngineSource.bundled);
         }
 
         final system = _find(tool, [...pathDirs, ...knownDirs]);
         if (system != null) {
-          return EngineStatus(
-            tool: tool,
-            path: system.path,
-            source: pathDirs.contains(system.directory)
+          return _resolved(
+            tool,
+            system.path,
+            pathDirs.contains(system.directory)
                 ? EngineSource.path
                 : EngineSource.knownLocation,
-            version: await _probeVersion(tool, system.path),
           );
         }
 
@@ -279,23 +264,104 @@ class Toolkit {
     return result;
   }
 
-  static Future<String?> _probeVersion(EngineTool tool, String executable) async {
+  static Future<EngineStatus> _resolved(
+    EngineTool tool,
+    String path,
+    EngineSource source,
+  ) async {
+    final probe = await _probe(tool, path);
+    return EngineStatus(
+      tool: tool,
+      path: path,
+      source: source,
+      version: probe.version,
+      error: probe.error,
+    );
+  }
+
+  /// Runs each engine's documented health check, not just `--version`.
+  ///
+  /// `pdf2docx` is the important exception: its Fire CLI exits 2 for
+  /// `--version`, so its [EngineTool.probe] uses `--help`. A failed probe keeps
+  /// the path (the executable exists) but surfaces the error in Settings.
+  static Future<({String? version, String? error})> _probe(
+    EngineTool tool,
+    String executable,
+  ) async {
+    final probe = tool.probe;
+    final shellScript = Platform.isWindows &&
+        (executable.toLowerCase().endsWith('.cmd') ||
+            executable.toLowerCase().endsWith('.bat'));
     try {
       final result = await Process.run(
         executable,
-        tool.versionArgs,
+        probe.args,
+        runInShell: shellScript,
         stdoutEncoding: const SystemEncoding(),
         stderrEncoding: const SystemEncoding(),
-      ).timeout(const Duration(seconds: 6));
-      final text = '${result.stdout}\n${result.stderr}'
-          .split(RegExp(r'[\r\n]+'))
-          .map((line) => line.trim())
-          .firstWhere((line) => line.isNotEmpty, orElse: () => '');
-      if (text.isEmpty) return null;
-      return text.length > 120 ? '${text.substring(0, 120)}…' : text;
-    } catch (_) {
-      return null;
+      ).timeout(const Duration(seconds: 10));
+      final text = '${result.stdout}\n${result.stderr}';
+      final required = probe.mustContain;
+      if (required != null &&
+          !text.toLowerCase().contains(required.toLowerCase())) {
+        return (
+          version: null,
+          error: 'Health check did not report ${tool.label}',
+        );
+      }
+      if (result.exitCode != 0) {
+        return (
+          version: null,
+          error: 'Health check exited with code ${result.exitCode}',
+        );
+      }
+      final pattern = probe.versionPattern;
+      if (pattern != null) {
+        final match = RegExp(pattern, caseSensitive: false).firstMatch(text);
+        if (match != null) {
+          final version = match.groupCount >= 1 ? match.group(1) : match.group(0);
+          if (version != null) return (version: version, error: null);
+        }
+      }
+      if (tool == EngineTool.pdf2docx) {
+        // The CLI has no --version flag; read the installed package metadata
+        // next to the interpreter instead.
+        final packageVersion = _pdf2docxPackageVersion(executable);
+        if (packageVersion != null) {
+          return (version: packageVersion, error: null);
+        }
+      }
+      return (version: null, error: null);
+    } on TimeoutException {
+      return (version: null, error: 'Health check timed out');
+    } catch (error) {
+      return (version: null, error: 'Health check failed: $error');
     }
+  }
+
+  /// Reads `pdf2docx-<version>.dist-info` beside the Python install.
+  static String? _pdf2docxPackageVersion(String executable) {
+    final scripts = Directory(p.dirname(executable));
+    final pythonRoot = scripts.parent;
+    final candidates = <String>[
+      p.join(pythonRoot.path, 'Lib', 'site-packages'),
+      p.join(pythonRoot.path, 'site-packages'),
+    ];
+    for (final candidate in candidates) {
+      final directory = Directory(candidate);
+      if (!directory.existsSync()) continue;
+      try {
+        for (final entry in directory.listSync(followLinks: false)) {
+          final name = p.basename(entry.path);
+          final match =
+              RegExp(r'^pdf2docx-([0-9][^/\\]*)\.dist-info$').firstMatch(name);
+          if (match != null) return match.group(1);
+        }
+      } on FileSystemException {
+        // Ignore unreadable site-packages folders.
+      }
+    }
+    return null;
   }
 }
 

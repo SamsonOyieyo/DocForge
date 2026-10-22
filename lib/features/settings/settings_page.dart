@@ -164,8 +164,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'DocForge drives these open-source projects as local processes. '
-                'Add a custom path if an engine lives outside your PATH.',
+                'QPDF ships with DocForge. Other open-source engines are optional; '
+                'add a custom path if one lives outside your PATH.',
                 style: text.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                   height: 1.45,
@@ -354,9 +354,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Engines keep their own licences. Ghostscript is AGPL-3.0 and Poppler is GPL-2.0 – '
-                      'review obligations before distributing a closed-source build. QPDF (Apache-2.0), '
-                      'Tesseract (Apache-2.0) and LibreOffice (MPL-2.0) are friendlier for commercial apps.',
+                      'QPDF 12.4.2 is bundled under Apache-2.0. Tesseract '
+                      '(Apache-2.0, with Leptonica BSD-2-Clause) is an optional '
+                      'download. Poppler (GPL-2.0), Ghostscript (AGPL-3.0), '
+                      'LibreOffice (MPL-2.0) and pdf2docx (MIT; PyMuPDF is '
+                      'AGPL-3.0) are user-provided and are not distributed with '
+                      'DocForge. Review the obligations before redistributing them.',
                       style: text.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         height: 1.5,
@@ -576,6 +579,102 @@ class _Section extends StatelessWidget {
   }
 }
 
+/// Shows the audited facts that justify an engine choice. Keeping them in the
+/// app (not just in docs) makes licensing and distribution visible at the point
+/// where a user installs or points DocForge at an engine.
+Future<void> _showEngineDetails(BuildContext context, EngineTool tool) {
+  final facts = tool.facts;
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text('${facts.label} engine'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _EngineFact(label: 'Purpose', value: facts.purpose),
+              _EngineFact(label: 'Upstream', value: facts.upstream),
+              _EngineFact(label: 'Pinned version', value: facts.pinnedVersion),
+              _EngineFact(
+                label: 'Distribution',
+                value: facts.distribution.label,
+              ),
+              _EngineFact(
+                label: 'Runtime and dependencies',
+                value: facts.dependencies.join('\n'),
+              ),
+              if (facts.dataFiles.isNotEmpty)
+                _EngineFact(
+                  label: 'Data and language packs',
+                  value: facts.dataFiles.join('\n'),
+                ),
+              _EngineFact(label: 'Download size', value: facts.downloadSize),
+              _EngineFact(label: 'Installed size', value: facts.installedSize),
+              _EngineFact(label: 'Licence', value: facts.license),
+              _EngineFact(
+                label: 'Redistribution',
+                value: facts.redistribution,
+              ),
+              _EngineFact(
+                label: 'Health check',
+                value: facts.healthCheck,
+              ),
+              _EngineFact(
+                label: 'Expected location',
+                value: facts.expectedLocation,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _EngineFact extends StatelessWidget {
+  const _EngineFact({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: text.labelSmall?.copyWith(
+              color: scheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          SelectableText(
+            value,
+            style: text.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EngineCard extends StatelessWidget {
   const _EngineCard({
     required this.status,
@@ -636,8 +735,9 @@ class _EngineCard extends StatelessWidget {
                 ),
               ),
               Text(
-                status.version ??
-                    (status.available ? 'Available' : 'Not found'),
+                status.version != null
+                    ? 'v${status.version}'
+                    : (status.available ? 'Ready' : 'Not found'),
                 style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
@@ -677,17 +777,20 @@ class _EngineCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          Row(
+          Text(
+            'Licence: ${tool.license} · ${tool.facts.distribution.label}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 2),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 2,
             children: [
-              Expanded(
-                child: Text(
-                  'Licence: ${tool.license}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
+              TextButton(
+                onPressed: () => _showEngineDetails(context, tool),
+                child: const Text('Details'),
               ),
               if (onReset != null)
                 TextButton(onPressed: onReset, child: const Text('Reset')),

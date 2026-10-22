@@ -1,0 +1,21 @@
+DocForge bundles QPDF 12.4.2
+================================
+
+Upstream: https://github.com/qpdf/qpdf
+Licence:  Apache License, Version 2.0 (see LICENSE.txt)
+
+Copyright (c) 2005-2021 Jay Berkenbilt
+Copyright (c) 2022-2026 Jay Berkenbilt and Manfred Holger
+
+QPDF is licensed under the Apache License, Version 2.0. You may obtain a copy
+of the License at:
+
+  https://www.apache.org/licenses/LICENSE-2.0
+
+The bundled Windows package also contains the Microsoft Visual C++ runtime
+DLLs shipped by the official QPDF msvc64 build. They are included so qpdf.exe
+runs on a clean Windows installation; they are not modified.
+
+QPDF itself contains code and data from third parties. See the licence section
+of the QPDF manual for the complete list and notices:
+https://qpdf.readthedocs.io/en/stable/license.html

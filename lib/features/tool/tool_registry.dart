@@ -405,7 +405,7 @@ final List<ToolDefinition> toolRegistry = [
     title: 'PDF → Word',
     tagline: 'Rebuild an editable DOCX',
     description:
-        'Uses pdf2docx when it is installed, otherwise LibreOffice’s PDF import. Tables and spacing may need a quick cleanup.',
+        'Uses pdf2docx 0.5.13+ when installed, otherwise LibreOffice’s PDF import. Tables and spacing may need a quick cleanup.',
     category: 'Convert',
     icon: Icons.article_rounded,
     tint: _blue,
@@ -414,7 +414,8 @@ final List<ToolDefinition> toolRegistry = [
     engineGroups: const [
       [EngineTool.pdf2docx, EngineTool.libreoffice],
     ],
-    notice: 'For the best reconstruction install pdf2docx (pip install pdf2docx).',
+    notice:
+        'Optional: pip install pdf2docx==0.5.13 (Python 3.10+). pdf2docx is MIT, but its PyMuPDF dependency is AGPL-3.0. LibreOffice is the fallback.',
     outputName: (files, values) => OutputNaming.withSuffix(files.first, '', extension: '.docx'),
     build: ({
       required List<String> files,
@@ -523,6 +524,8 @@ final List<ToolDefinition> toolRegistry = [
       [EngineTool.qpdf],
       [EngineTool.pdftoppm, EngineTool.ghostscript],
     ],
+    notice:
+        'OCR needs Tesseract plus Poppler or Ghostscript to rasterise the pages. QPDF ships with DocForge; the other engines are optional.',
     fields: [
       const ToolField.text(
         key: 'language',

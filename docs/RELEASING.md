@@ -56,9 +56,11 @@ Pushing a `v*` tag runs `.github/workflows/build.yml`:
 1. **Analyze and test** on Linux (`flutter analyze`, `flutter test`).
 2. **Windows x64** on `windows-latest`:
    - builds with `--build-name <version> --build-number <build>`;
+   - runs `tool/bundle_qpdf.ps1` to vendor the pinned QPDF runtime and its
+     Apache-2.0 notices into `Release\engines\qpdf`;
    - installs Inno Setup and runs `tool/package_windows.ps1 -SkipBuild`;
    - uploads `DocForge-Setup-<version>.exe`, `SHA256SUMS.txt` and a portable
-     zip as workflow artifacts.
+     zip (which now includes the bundled QPDF) as workflow artifacts.
 3. **Release** (tags only): verifies the tag, then runs `gh release create`
    with the installer and checksums, generated notes, and `--latest`.
 
@@ -122,10 +124,11 @@ Prerequisites:
   `-InnoCompiler <path>`.
 
 ```powershell
-# Build + installer + checksums
-powershell -ExecutionPolicy Bypass -File tool/package_windows.ps1
+# Build + bundle QPDF + installer + checksums
+powershell -ExecutionPolicy Bypass -File tool/package_windows.ps1 -BundleQpdf
 
-# Reuse an existing build\windows\x64\runner\Release
+# Reuse an existing build\windows\x64\runner\Release (add -BundleQpdf if the
+# engines\qpdf folder is not already staged)
 powershell -ExecutionPolicy Bypass -File tool/package_windows.ps1 -SkipBuild
 ```
 

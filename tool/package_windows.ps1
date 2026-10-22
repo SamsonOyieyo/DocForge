@@ -18,6 +18,11 @@
   Reuse an existing build\windows\x64\runner\Release folder (used by CI, which
   builds in a previous step).
 
+.PARAMETER BundleQpdf
+  Download the pinned QPDF Windows x64 runtime into the release's engines\
+  folder before compiling the installer. CI runs tool/bundle_qpdf.ps1 directly;
+  pass this switch for a reproducible local release build.
+
 .PARAMETER InnoCompiler
   Path to ISCC.exe when Inno Setup is installed in a non-standard location.
 
@@ -27,6 +32,7 @@
 param(
   [string]$Version,
   [switch]$SkipBuild,
+  [switch]$BundleQpdf,
   [string]$InnoCompiler
 )
 
@@ -66,6 +72,14 @@ try {
   $releaseDir = Join-Path $repo 'build\windows\x64\runner\Release'
   if (-not (Test-Path (Join-Path $releaseDir 'docforge.exe'))) {
     throw "Windows release not found at $releaseDir. Build the app first or omit -SkipBuild."
+  }
+
+  if ($BundleQpdf) {
+    & (Join-Path $PSScriptRoot 'bundle_qpdf.ps1') `
+      -Destination (Join-Path $releaseDir 'engines\qpdf')
+    if ($LASTEXITCODE -ne 0) {
+      throw "QPDF bundling failed with exit code $LASTEXITCODE."
+    }
   }
 
   if (-not $InnoCompiler) {

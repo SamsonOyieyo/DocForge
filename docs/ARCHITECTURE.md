@@ -28,8 +28,8 @@ in a background isolate and every document mutation is delegated to an external
 └───────────────────────────┬──────────────────────────────────┘
                             │ Process.start
 ┌───────────────────────────▼──────────────────────────────────┐
-│ Engines: QPDF · Ghostscript · Poppler · Tesseract ·          │
-│          LibreOffice · pdf2docx                              │
+│ Engines: QPDF (bundled) · Ghostscript · Poppler · Tesseract  │
+│          LibreOffice · pdf2docx (optional/user-provided)     │
 │          (system installs, bundled seeds, OTA packages)      │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -60,6 +60,14 @@ Engines can arrive from three places, resolved in this order by `Toolkit`:
 a Settings override, a **managed package** installed by `EngineManager`
 (bundled seed or downloaded update), then a bundled `engines/` folder / `PATH` /
 known install location.
+
+QPDF is the only engine bundled in a stock installer. CI runs
+`tool/bundle_qpdf.ps1` after `flutter build windows`; it downloads the pinned
+official msvc64 package, verifies its SHA-256, copies the runtime plus
+Apache-2.0 notices into `Release/engines/qpdf`, and runs `qpdf --version`.
+Tesseract, Poppler, Ghostscript, LibreOffice and pdf2docx remain optional or
+user-provided; the rationale, licences, sizes and health checks are in
+[`ENGINES.md`](ENGINES.md).
 
 Managed engines live as immutable versions under
 `<application support>/engines/<engine>/<version>/`; `state.json` points at the
@@ -207,7 +215,7 @@ used by overlays.
 
 | Platform | Status |
 | --- | --- |
-| Windows | **Supported release target** (Windows 10+, x64). Per-user installer, in-app app updates. Engines discovered from PATH, WinGet packages, versioned install folders. |
+| Windows | **Supported release target** (Windows 10+, x64). Per-user installer, in-app app updates. QPDF is bundled; other engines are discovered from PATH, WinGet packages, versioned install folders or a custom override. |
 | macOS | Process layer kept working, but development and releases are paused. |
 | Linux | Process layer kept working, but development and releases are paused. |
 | Android/iOS | **Paused.** Android cannot exec downloaded binaries from app storage (API 29+), so engines must ship as APK-native FFI libraries or scripts/data; until then tools report “engine missing”. |
@@ -225,6 +233,8 @@ used by overlays.
   `--show-npages`), including encryption and OCR text extraction.
 - `tool/stage_engines.ps1` — copies portable Windows engines into `engines/` so
   a built app can run without system installs.
+- `tool/bundle_qpdf.ps1` — downloads and verifies the pinned QPDF runtime that
+  ships in the installer; also usable locally with `-Destination`.
 - `tool/make_icon.ps1` — regenerates the PNG/ICO app icon.
 - `tool/package_windows.ps1` — builds the Windows release and per-user installer
   (`dist\DocForge-Setup-<version>.exe` + `SHA256SUMS.txt`).

@@ -238,12 +238,15 @@ jobs:
         shell: pwsh
         run: flutter build windows --release --build-name $env:APP_VERSION --build-number $env:APP_BUILD
 
-      # Engines (QPDF, Tesseract, ...) are resolved at runtime from the host or a
-      # portable `engines/` folder next to DocForge.exe. Hosted runners have none
-      # installed, so this build ships without them. For a portable build, stage
-      # engines locally before packaging:
-      #   pwsh -File tool/stage_engines.ps1 -Destination build/windows/x64/runner/Release/engines
-      # See docs/ENGINES.md.
+      # QPDF is bundled: it is Apache-2.0, 8.8 MB and every structural PDF tool
+      # needs it. The script pins the official msvc64 release, verifies its
+      # SHA-256, copies the runtime plus licence notices and runs a health check.
+      # Tesseract, Poppler, Ghostscript, LibreOffice and pdf2docx stay optional
+      # or user-provided; see docs/ENGINES.md.
+      - name: Bundle QPDF
+        shell: pwsh
+        run: ./tool/bundle_qpdf.ps1 -Destination build/windows/x64/runner/Release/engines/qpdf
+
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
 

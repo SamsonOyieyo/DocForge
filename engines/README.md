@@ -5,6 +5,13 @@ in [`engines.json`](engines.json), zips it deterministically, hashes it, and
 publishes it to the rolling `engines` GitHub release. The app then updates
 individual engines from the generated manifest.
 
+> **Current Windows distribution:** QPDF 12.4.2 is bundled directly by
+> [`tool/bundle_qpdf.ps1`](../tool/bundle_qpdf.ps1) (Apache-2.0, 8.8 MB runtime)
+> rather than shipped through this OTA registry. Tesseract, Poppler, Ghostscript,
+> LibreOffice and pdf2docx are optional or user-provided. The selection record,
+> licences, sizes and health checks are in
+> [`docs/ENGINES.md`](../docs/ENGINES.md).
+
 ```
 engines/
   engines.json          registry: version, licence, runtimes, targets

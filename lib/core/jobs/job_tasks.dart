@@ -424,10 +424,17 @@ class _Session {
       progress('Reconstructing DOCX with pdf2docx');
       final output = await _expectSuccess(
         tool(EngineTool.pdf2docx),
-        ['convert', input, outputPath],
+        Pdf2docxCommands.convert(input, outputPath),
         EngineTool.pdf2docx,
       );
       log(output.tail);
+      final produced = File(outputPath);
+      if (!produced.existsSync() || produced.lengthSync() == 0) {
+        throw JobException(
+          'pdf2docx exited without producing a DOCX.',
+          details: output.tail,
+        );
+      }
       finish('Reconstructed an editable Word document.', [_artifact(outputPath)]);
       return;
     }

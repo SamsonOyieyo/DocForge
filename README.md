@@ -54,28 +54,35 @@ the first run (**More info → Run anyway**). Code signing is documented in
 
 | Platform | Engines |
 | --- | --- |
-| Windows | QPDF (required for structural tools), plus optional Tesseract, Poppler, Ghostscript and LibreOffice |
+| Windows | QPDF 12.4.2 is bundled. Optional: Tesseract, Poppler, Ghostscript, LibreOffice and pdf2docx |
 | macOS | `brew install qpdf ghostscript poppler tesseract` and `brew install --cask libreoffice` |
 | Linux | `sudo apt install qpdf ghostscript poppler-utils tesseract-ocr libreoffice-core` |
 | Android/iOS | UI builds. Android cannot exec downloaded binaries (API 29+), so engines must be APK-native/FFI or scripts; see `docs/ENGINES_OTA.md` |
 
-Only QPDF is needed for merge, split, extract, rotate, watermark, page numbers,
-protect, unlock, fast web view and repair. Missing optional engines disable only
-the tools that need them and show install hints in Settings.
+QPDF is bundled with the Windows installer, so merge, split, extract, rotate,
+watermark, page numbers, protect, unlock, fast web view and repair work
+immediately. Missing optional engines disable only the tools that need them and
+show install hints in Settings. The full decision record, licences and sizes are
+in [`docs/ENGINES.md`](docs/ENGINES.md).
 
 Windows is the only supported release target at the moment (version 1.0.0).
 macOS, Linux and mobile sources remain in the tree but are not being developed
 or released while DocForge focuses on Windows.
 
-Windows quick start:
+Windows optional engines:
 
 ```powershell
-winget install QPDF.QPDF
 winget install UB-Mannheim.TesseractOCR
 winget install oschwartz10612.Poppler
 winget install TheDocumentFoundation.LibreOffice
 # Ghostscript: install from https://ghostscript.com/releases/gsdnld.html
+# pdf2docx (optional PDF -> Word backend):
+python -m pip install pdf2docx==0.5.13
 ```
+
+Ghostscript is AGPL-3.0, Poppler is GPL-2.0 and pdf2docx depends on AGPL-3.0
+PyMuPDF. DocForge does not bundle or auto-install them; install only what you
+need and review the obligations before redistributing.
 
 ## Run, test and package
 
@@ -88,7 +95,7 @@ dart run tool/make_samples.dart
 dart run tool/smoke_test.dart # real engines + QPDF validation
 
 # Per-user installer in dist\ (requires Inno Setup 6):
-powershell -ExecutionPolicy Bypass -File tool/package_windows.ps1
+powershell -ExecutionPolicy Bypass -File tool/package_windows.ps1 -BundleQpdf
 ```
 
 `tool/package_windows.ps1` validates the version against `pubspec.yaml` and
@@ -102,17 +109,28 @@ reject the wrong password, and confirms that OCR text is searchable.
 
 ## Portable engines
 
-To ship DocForge without requiring system installs, stage QPDF, Tesseract and
-Poppler next to the app:
+The Windows installer always bundles the pinned QPDF runtime:
 
 ```powershell
-pwsh -File tool/stage_engines.ps1
-pwsh -File tool/stage_engines.ps1 -Destination build\windows\x64\runner\Release\engines
+powershell -ExecutionPolicy Bypass -File tool/bundle_qpdf.ps1 `
+  -Destination build\windows\x64\runner\Release\engines\qpdf
+```
+
+To add optional engines to a portable `engines/` folder, stage Tesseract and
+Poppler from local installations:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tool/stage_engines.ps1 `
+  -Engines tesseract,poppler
+powershell -ExecutionPolicy Bypass -File tool/stage_engines.ps1 `
+  -Engines tesseract,poppler `
+  -Destination build\windows\x64\runner\Release\engines
 ```
 
 The app scans `engines/` next to its executable, in its support directory, and
 in the working directory (including one level of per-engine subfolders), then
-falls back to PATH and known install locations.
+falls back to PATH and known install locations. `docs/ENGINES.md` records which
+engines are bundled, optional or user-provided, and why.
 
 ## Project layout
 
@@ -138,7 +156,7 @@ docs/           architecture, engines/FFI roadmap, licensing, releasing
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — layers, job lifecycle, overlays, limits
-- [Engines](docs/ENGINES.md) — install, discovery, staging, FFI roadmap
+- [Engines](docs/ENGINES.md) — selection record, licences, sizes, health checks and distribution
 - [Engine packages & OTA](docs/ENGINES_OTA.md) — package format, manifest, release workflow, Android limits
 - [Licensing](docs/LICENSING.md) — AGPL/GPL implications and distribution profile
 - [Releasing](docs/RELEASING.md) — versioning, installer, signing and app updates
@@ -147,7 +165,8 @@ docs/           architecture, engines/FFI roadmap, licensing, releasing
 
 DocForge 1.0.0 is the first Windows release. The app analyzes cleanly, the test
 suite covers the update/version logic plus desktop and phone layouts, and all
-desktop pipelines are verified end-to-end: 18/18 smoke tests pass on Windows
-with QPDF, Ghostscript, Poppler, Tesseract and LibreOffice. `pdf2docx` remains
-an optional engine and is not installed here. Mobile support is paused until
-bundled FFI engines (QPDF, PDFium, Tesseract) are available.
+desktop pipelines are verified end-to-end with the native engines. QPDF now
+ships with the Windows installer; Ghostscript, Poppler, Tesseract, LibreOffice
+and pdf2docx remain optional or user-provided (see `docs/ENGINES.md`). Mobile
+support is paused until bundled FFI engines (QPDF, PDFium, Tesseract) are
+available.

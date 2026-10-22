@@ -112,6 +112,15 @@ void main() {
     });
   });
 
+  group('pdf2docx command builder', () {
+    test('passes the output as the second positional argument', () {
+      expect(
+        Pdf2docxCommands.convert(r'C:\in\report.pdf', r'C:\out\report.docx'),
+        ['convert', r'C:\in\report.pdf', r'C:\out\report.docx'],
+      );
+    });
+  });
+
   group('OutputNaming', () {
     test('suffix preserves the base name', () {
       expect(

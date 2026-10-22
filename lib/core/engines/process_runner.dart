@@ -61,6 +61,9 @@ Future<ProcessOutput> runProcess(
   Duration? timeout,
 }) async {
   final lines = <String>[];
+  final shellScript = Platform.isWindows &&
+      (executable.toLowerCase().endsWith('.cmd') ||
+          executable.toLowerCase().endsWith('.bat'));
   final process = await Process.start(
     executable,
     arguments,
@@ -68,7 +71,7 @@ Future<ProcessOutput> runProcess(
     environment: environment == null
         ? _engineEnvironment
         : {..._engineEnvironment, ...environment},
-    runInShell: false,
+    runInShell: shellScript,
   );
 
   // Never let a wedged engine keep a job alive forever. Conversions on very

@@ -208,6 +208,21 @@ class LibreOfficeCommands {
       ];
 }
 
+/// pdf2docx 0.5.x CLI (Fire).
+///
+/// Verified against 0.5.13: `pdf2docx convert input.pdf output.docx` writes the
+/// DOCX to the second positional argument. The CLI does not implement
+/// `--version`; its health check is `pdf2docx --help`.
+class Pdf2docxCommands {
+  const Pdf2docxCommands._();
+
+  static List<String> convert(String input, String output) => [
+        'convert',
+        input,
+        output,
+      ];
+}
+
 /// Naming helpers shared by the UI and the job runner.
 class OutputNaming {
   const OutputNaming._();
