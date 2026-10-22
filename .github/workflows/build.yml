@@ -245,7 +245,6 @@ jobs:
         with:
           name: windows-installer
           path: dist/DocForge-Setup-*.exe
-          archive: false
           if-no-files-found: error
           retention-days: 30
 
@@ -254,14 +253,14 @@ jobs:
         with:
           name: windows-checksums
           path: dist/SHA256SUMS.txt
-          archive: false
           if-no-files-found: error
           retention-days: 30
 
       - name: Upload portable zip
         uses: actions/upload-artifact@v7
         with:
-          name: windows-portable
+          # Unarchived artifacts are named after the file, so `name` does not
+          # apply. This is a convenience download, not a release asset.
           path: dist/*.zip
           archive: false
           if-no-files-found: error
@@ -280,14 +279,17 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7
 
-      # The Windows job uploads unzipped artifacts, which are named after their
-      # files, so download everything in the run and pick the assets below.
-      - name: Download build artifacts
+      - name: Download installer
         uses: actions/download-artifact@v7
         with:
+          name: windows-installer
           path: dist
-          pattern: "*"
-          merge-multiple: true
+
+      - name: Download checksums
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-checksums
+          path: dist
 
       - name: Verify tag matches pubspec
         run: |
