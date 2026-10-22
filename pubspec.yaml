@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.11.3
+  sdk: ^3.13.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -46,7 +46,10 @@ dependencies:
   # while pdf 3.12 constrains archive to < 4.1.0. Lift this pin once pdf
   # allows archive 4.1+ or a fixed image release is available.
   image: 4.10.2
-  pdfrx: ^2.4.7
+  # Pinned: pdfrx 2.6+ pulls pdfium_dart with a native-asset build hook that
+  # requires the MSVC toolchain for tests as well as builds. 2.5.0 ships
+  # prebuilt PDFium libraries and supports Flutter 3.47/Dart 3.13.
+  pdfrx: 2.5.0
   path: ^1.9.1
   ffi: ^2.2.0
   vector_math: ^2.2.0
@@ -77,6 +80,7 @@ flutter:
   # platform). The zip files are produced by the engine release workflow.
   assets:
     - assets/engines/
+    - assets/icon/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

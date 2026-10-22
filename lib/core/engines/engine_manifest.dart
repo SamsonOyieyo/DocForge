@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
+import '../version.dart';
 import 'engine_platform.dart';
 
 /// One downloadable, architecture-specific engine package.
@@ -44,11 +44,11 @@ class EngineAsset {
   }
 
   Map<String, Object?> toJson() => {
-        'url': url.toString(),
-        'sha256': sha256,
-        'size': size,
-        if (version != null) 'version': version,
-      };
+    'url': url.toString(),
+    'sha256': sha256,
+    'size': size,
+    if (version != null) 'version': version,
+  };
 }
 
 /// Metadata and per-platform packages for one engine.
@@ -88,9 +88,7 @@ class EngineRelease {
     final assets = <String, EngineAsset>{};
     rawAssets.forEach((key, value) {
       if (key is! String || value is! Map) return;
-      assets[key] = EngineAsset.fromJson(
-        Map<String, Object?>.from(value),
-      );
+      assets[key] = EngineAsset.fromJson(Map<String, Object?>.from(value));
     });
     final runtimes = json['runtimes'];
     return EngineRelease(
@@ -107,15 +105,15 @@ class EngineRelease {
   }
 
   Map<String, Object?> toJson() => {
-        'version': version,
-        if (notes != null) 'notes': notes,
-        if (license != null) 'license': license,
-        if (releasedAt != null) 'releasedAt': releasedAt!.toUtc().toIso8601String(),
-        if (runtimes.isNotEmpty) 'runtimes': runtimes,
-        'assets': {
-          for (final entry in assets.entries) entry.key: entry.value.toJson(),
-        },
-      };
+    'version': version,
+    if (notes != null) 'notes': notes,
+    if (license != null) 'license': license,
+    if (releasedAt != null) 'releasedAt': releasedAt!.toUtc().toIso8601String(),
+    if (runtimes.isNotEmpty) 'runtimes': runtimes,
+    'assets': {
+      for (final entry in assets.entries) entry.key: entry.value.toJson(),
+    },
+  };
 }
 
 /// The remote `engines_manifest.json`.
@@ -174,64 +172,20 @@ class EngineManifest {
   }
 
   Map<String, Object?> toJson() => {
-        'schema': schema,
-        if (generatedAt != null)
-          'generatedAt': generatedAt!.toUtc().toIso8601String(),
-        'engines': {
-          for (final entry in engines.entries) entry.key: entry.value.toJson(),
-        },
-      };
+    'schema': schema,
+    if (generatedAt != null)
+      'generatedAt': generatedAt!.toUtc().toIso8601String(),
+    'engines': {
+      for (final entry in engines.entries) entry.key: entry.value.toJson(),
+    },
+  };
 
   String toJsonString() => const JsonEncoder.withIndent('  ').convert(toJson());
 }
 
-/// Compares dotted engine versions such as `12.4.2`, `10.05.0` or `1.2.0-rc1`.
-///
-/// Returns a negative number when [a] is older, `0` when equal and a positive
-/// number when [a] is newer. Unparsable versions fall back to a stable string
-/// comparison so a publisher with an exotic tag cannot crash the updater.
-int compareEngineVersions(String a, String b) {
-  if (a == b) return 0;
-  final left = _ParsedVersion.parse(a);
-  final right = _ParsedVersion.parse(b);
-  if (left == null || right == null) {
-    return a.compareTo(b) > 0 ? 1 : -1;
-  }
-
-  final length = math.max(left.numbers.length, right.numbers.length);
-  for (var i = 0; i < length; i++) {
-    final x = i < left.numbers.length ? left.numbers[i] : 0;
-    final y = i < right.numbers.length ? right.numbers[i] : 0;
-    if (x != y) return x.compareTo(y);
-  }
-
-  // A release is newer than any of its pre-releases (`1.0.0 > 1.0.0-rc1`).
-  final x = left.prerelease;
-  final y = right.prerelease;
-  if (x == null && y == null) return 0;
-  if (x == null) return 1;
-  if (y == null) return -1;
-  return x.compareTo(y) == 0 ? 0 : (x.compareTo(y) > 0 ? 1 : -1);
-}
+/// Compares dotted engine versions (kept for engine callers; the implementation
+/// lives in `core/version.dart` so app and engine updates share one comparator).
+int compareEngineVersions(String a, String b) => compareVersions(a, b);
 
 bool isNewerEngineVersion(String candidate, String current) =>
-    compareEngineVersions(candidate, current) > 0;
-
-class _ParsedVersion {
-  const _ParsedVersion(this.numbers, this.prerelease);
-
-  final List<int> numbers;
-  final String? prerelease;
-
-  static final RegExp _pattern =
-      RegExp(r'^[vV]?(\d+(?:\.\d+)*)(?:-([0-9A-Za-z.\-]+))?(?:\+[0-9A-Za-z.\-]+)?$');
-
-  static _ParsedVersion? parse(String value) {
-    final match = _pattern.firstMatch(value.trim());
-    if (match == null) return null;
-    return _ParsedVersion(
-      [for (final part in match.group(1)!.split('.')) int.parse(part)],
-      match.group(2),
-    );
-  }
-}
+    isNewerVersion(candidate, current);

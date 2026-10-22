@@ -6,6 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'app_info.dart';
+import 'app_update.dart';
 import 'engines/engine_manager.dart';
 import 'engines/engine_tool.dart';
 import 'engines/toolkit.dart';
@@ -15,6 +17,10 @@ import 'jobs/job_runner.dart';
 import 'settings.dart';
 
 class AppState extends ChangeNotifier {
+  AppState({AppUpdateService? appUpdates})
+    : _appUpdates = appUpdates ?? AppUpdateService();
+
+  final AppUpdateService _appUpdates;
   AppSettings _settings = const AppSettings();
   Toolkit _toolkit = Toolkit.empty;
   EngineManager? _engineManager;
@@ -27,6 +33,12 @@ class AppState extends ChangeNotifier {
   bool _checkingEngines = false;
   bool _installingEngine = false;
   bool _initialized = false;
+  AppRelease? _appUpdate;
+  bool _checkingAppUpdate = false;
+  bool _downloadingAppUpdate = false;
+  double? _appDownloadProgress;
+  String? _appUpdateError;
+  String? _appUpdateStatus;
 
   AppSettings get settings => _settings;
   Toolkit get toolkit => _toolkit;
@@ -40,6 +52,12 @@ class AppState extends ChangeNotifier {
   bool get checkingEngines => _checkingEngines;
   bool get installingEngine => _installingEngine;
   bool get initialized => _initialized;
+  AppRelease? get availableAppUpdate => _appUpdate;
+  bool get checkingAppUpdate => _checkingAppUpdate;
+  bool get downloadingAppUpdate => _downloadingAppUpdate;
+  double? get appDownloadProgress => _appDownloadProgress;
+  String? get appUpdateError => _appUpdateError;
+  String? get appUpdateStatus => _appUpdateStatus;
 
   List<HistoryEntry> get recentOutputs => _history.take(6).toList();
 
@@ -122,6 +140,75 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Checks GitHub Releases for a newer DocForge build.
+  Future<void> checkForAppUpdate() async {
+    if (_checkingAppUpdate) return;
+    _checkingAppUpdate = true;
+    _appUpdate = null;
+    _appUpdateError = null;
+    _appUpdateStatus = null;
+    notifyListeners();
+    try {
+      final release = await _appUpdates.latestRelease();
+      if (release == null) {
+        _appUpdateStatus =
+            'No ${AppInfo.name} release with a Windows installer has been '
+            'published yet.';
+      } else if (release.isNewerThanCurrent) {
+        _appUpdate = release;
+      } else {
+        _appUpdateStatus = '${AppInfo.name} ${AppInfo.version} is up to date.';
+      }
+    } on AppUpdateException catch (error) {
+      _appUpdateError = error.message;
+    } catch (error) {
+      _appUpdateError = 'Could not check for app updates: $error';
+    } finally {
+      _checkingAppUpdate = false;
+      notifyListeners();
+    }
+  }
+
+  /// Downloads and verifies the available installer, if any.
+  ///
+  /// Returns `null` when there is nothing to install or the download failed
+  /// (the failure is exposed through [appUpdateError]).
+  Future<File?> downloadAppUpdate() async {
+    final release = _appUpdate;
+    if (release == null || _downloadingAppUpdate) return null;
+    _downloadingAppUpdate = true;
+    _appDownloadProgress = 0;
+    _appUpdateError = null;
+    notifyListeners();
+    var lastPercent = -1;
+    try {
+      return await _appUpdates.downloadInstaller(
+        release,
+        onProgress: (received, total) {
+          if (total <= 0) return;
+          final percent = (received * 100 ~/ total).clamp(0, 100);
+          if (percent == lastPercent) return;
+          lastPercent = percent;
+          _appDownloadProgress = received / total;
+          notifyListeners();
+        },
+      );
+    } on AppUpdateException catch (error) {
+      _appUpdateError = error.message;
+      return null;
+    } catch (error) {
+      _appUpdateError = 'Could not download the update: $error';
+      return null;
+    } finally {
+      _downloadingAppUpdate = false;
+      notifyListeners();
+    }
+  }
+
+  /// Starts the verified installer; the caller should then close the app.
+  Future<void> launchAppUpdate(File installer) =>
+      _appUpdates.launchInstaller(installer);
+
   /// Fetches the engine manifest and lists newer packages.
   Future<void> checkEngineUpdates() async {
     final manager = _engineManager;
@@ -166,8 +253,11 @@ class AppState extends ChangeNotifier {
   Future<void> updateSettings(AppSettings next) async {
     final enginePathsChanged =
         next.toolPaths.length != _settings.toolPaths.length ||
-        next.toolPaths.entries.any((entry) => _settings.toolPaths[entry.key] != entry.value);
-    final autoUpdateEnabled = next.autoUpdateEngines && !_settings.autoUpdateEngines;
+        next.toolPaths.entries.any(
+          (entry) => _settings.toolPaths[entry.key] != entry.value,
+        );
+    final autoUpdateEnabled =
+        next.autoUpdateEngines && !_settings.autoUpdateEngines;
     _settings = next;
     notifyListeners();
     await SettingsStore.saveSettings(next);
@@ -214,7 +304,7 @@ class AppState extends ChangeNotifier {
 
 class AppScope extends InheritedNotifier<AppState> {
   const AppScope({super.key, required AppState state, required super.child})
-      : super(notifier: state);
+    : super(notifier: state);
 
   static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();

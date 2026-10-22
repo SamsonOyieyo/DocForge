@@ -37,9 +37,11 @@ in a background isolate and every document mutation is delegated to an external
 ## Design rules
 
 1. **No document ever leaves the device.** There is no analytics or crash
-   reporter. The only network code is the opt-in engine updater, which fetches
-   an engine manifest and, when the user asks for it, an engine package.
-   `autoUpdateEngines` defaults to off on a fresh install.
+   reporter. Network code exists only for updates: the opt-in engine updater
+   (an engine manifest and, when asked, an engine package) and the app updater
+   in Settings → About DocForge (GitHub Releases metadata, the installer and
+   its checksum file). `autoUpdateEngines` defaults to off on a fresh install,
+   and app update checks only run when the user clicks the button.
 2. **The UI thread never parses or writes documents.** Page-count probing is
    the only exception and uses `pdfrx` asynchronously for small files.
 3. **Jobs are serializable.** `JobRequest` contains strings, numbers, lists and
@@ -74,6 +76,37 @@ hot-swappable (the YTDLnis pattern). `EngineManager` refuses `process` packages
 on Android unless a sideloaded build opts in with
 `allowAndroidProcessEngines = true`. Full details, manifest schema and the
 release workflow are in [`ENGINES_OTA.md`](ENGINES_OTA.md).
+
+## App updates and packaging
+
+The Windows build is distributed as a per-user Inno Setup installer
+(`installer/docforge.iss`): `PrivilegesRequired=lowest`, installs to
+`%LOCALAPPDATA%\Programs\DocForge`, and reuses the same `AppId` so a newer
+installer upgrades in place without UAC. The exe, shortcuts and uninstaller all
+use `windows/runner/resources/app_icon.ico`.
+
+`lib/core/app_update.dart` implements the in-app updater:
+
+1. `GET https://api.github.com/repos/SamsonOyieyo/DocForge/releases?per_page=20`
+   and take the newest entry whose tag matches `vX.Y.Z` (this ignores the
+   rolling `engines` release and any non-app releases).
+2. Pick the `DocForge-Setup-*.exe` asset and `SHA256SUMS.txt`; URLs must be
+   HTTPS on GitHub.
+3. Compare the tag with `AppInfo.version` using `lib/core/version.dart` (the
+   same comparator the engine updater uses).
+4. Download to `%TEMP%\docforge-update-*`, verify the size and SHA-256, then
+   start the installer detached. The app exits so the installer can replace
+   `docforge.exe`.
+
+Version numbers come from one source per layer: `pubspec.yaml` (Flutter and exe
+metadata via CMake), `lib/core/app_info.dart` (About UI and updater), and the
+installer fallback. `tool/bump_version.py` updates all three, and
+`test/app_info_test.dart` plus `tool/package_windows.ps1` fail when they drift.
+Release steps are in [`RELEASING.md`](RELEASING.md).
+
+A single-instance mutex (`DocForge.SingleInstance`, also declared as `AppMutex`
+in the installer) prevents a second window from fighting over settings and
+lets upgrades close a running app cleanly.
 
 ## Tool registry
 
@@ -174,20 +207,26 @@ used by overlays.
 
 | Platform | Status |
 | --- | --- |
-| Windows | Primary development target. Engines discovered from PATH, WinGet packages, versioned install folders. |
-| macOS | Supported by the same process layer; engines from Homebrew or app bundle. |
-| Linux | Supported; engines from distro packages. |
-| Android/iOS | UI builds. Android cannot exec downloaded binaries from app storage (API 29+), so engines must ship as APK-native FFI libraries or scripts/data; until then tools report “engine missing”. |
+| Windows | **Supported release target** (Windows 10+, x64). Per-user installer, in-app app updates. Engines discovered from PATH, WinGet packages, versioned install folders. |
+| macOS | Process layer kept working, but development and releases are paused. |
+| Linux | Process layer kept working, but development and releases are paused. |
+| Android/iOS | **Paused.** Android cannot exec downloaded binaries from app storage (API 29+), so engines must ship as APK-native FFI libraries or scripts/data; until then tools report “engine missing”. |
 
 ## Testing
 
-- `flutter test` — unit tests for commands, page ranges, settings and the engine
-  manager (seed extraction, checksum rejection, hot-swap, rollback, Android
-  guard), plus widget tests for the desktop/phone shell and narrow tool/settings
-  layouts.
+- `flutter test` — unit tests for commands, page ranges, settings, version
+  agreement, the app updater (release parsing, legacy/engine release skipping,
+  SHA-256 verification) and the engine manager (seed extraction, checksum
+  rejection, hot-swap, rollback, Android guard), plus widget tests for the
+  desktop/phone shell and narrow tool/settings layouts.
 - `dart run tool/make_samples.dart` — deterministic sample PDFs.
 - `dart run tool/smoke_test.dart` — runs the real `JobRunner` for every
   available engine and validates outputs with QPDF (`--check`,
   `--show-npages`), including encryption and OCR text extraction.
 - `tool/stage_engines.ps1` — copies portable Windows engines into `engines/` so
   a built app can run without system installs.
+- `tool/make_icon.ps1` — regenerates the PNG/ICO app icon.
+- `tool/package_windows.ps1` — builds the Windows release and per-user installer
+  (`dist\DocForge-Setup-<version>.exe` + `SHA256SUMS.txt`).
+- `dart run tool/check_app_update.dart` — checks the live GitHub release feed
+  with the same updater code the app uses.

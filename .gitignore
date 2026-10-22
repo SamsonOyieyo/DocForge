@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+# Windows installer output (tool/package_windows.ps1).
+/dist/
 
 # Locally staged engine binaries (tool/stage_engines.ps1) live in engines/.
 # The package *sources* below are tracked; everything else in engines/ is not.

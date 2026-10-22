@@ -17,24 +17,21 @@ class AppMark extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [scheme.primary, scheme.primary.withValues(alpha: 0.72)],
-        ),
-        borderRadius: BorderRadius.circular(size * 0.28),
+        borderRadius: BorderRadius.circular(size * 0.24),
         boxShadow: [
           BoxShadow(
             color: scheme.primary.withValues(alpha: 0.28),
-            blurRadius: size * 0.35,
-            offset: Offset(0, size * 0.1),
+            blurRadius: size * 0.32,
+            offset: Offset(0, size * 0.08),
           ),
         ],
       ),
-      child: Icon(
-        Icons.picture_as_pdf_rounded,
-        size: size * 0.55,
-        color: scheme.onPrimary,
+      clipBehavior: Clip.antiAlias,
+      child: Image.asset(
+        'assets/icon/docforge.png',
+        width: size,
+        height: size,
+        filterQuality: FilterQuality.high,
       ),
     );
   }
@@ -71,7 +68,8 @@ class SurfaceCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: radius,
             border: Border.all(
-              color: borderColor ?? scheme.outlineVariant.withValues(alpha: 0.55),
+              color:
+                  borderColor ?? scheme.outlineVariant.withValues(alpha: 0.55),
             ),
           ),
           child: child,
@@ -82,7 +80,12 @@ class SurfaceCard extends StatelessWidget {
 }
 
 class SectionTitle extends StatelessWidget {
-  const SectionTitle({super.key, required this.title, this.subtitle, this.trailing});
+  const SectionTitle({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
 
   final String title;
   final String? subtitle;
@@ -133,14 +136,18 @@ class PrivacyBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.lock_outline_rounded, size: 14, color: scheme.onSecondaryContainer),
+          Icon(
+            Icons.lock_outline_rounded,
+            size: 14,
+            color: scheme.onSecondaryContainer,
+          ),
           const SizedBox(width: 6),
           Text(
             compact ? 'On-device' : '100% on-device · no uploads',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: scheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: scheme.onSecondaryContainer,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -162,7 +169,9 @@ class EngineDot extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: available ? scheme.secondary : scheme.error.withValues(alpha: 0.7),
+        color: available
+            ? scheme.secondary
+            : scheme.error.withValues(alpha: 0.7),
       ),
     );
   }
@@ -203,7 +212,11 @@ class FileRow extends StatelessWidget {
               color: scheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(icon ?? Icons.description_outlined, size: 20, color: scheme.primary),
+            child: Icon(
+              icon ?? Icons.description_outlined,
+              size: 20,
+              color: scheme.primary,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -222,7 +235,9 @@ class FileRow extends StatelessWidget {
                     detail!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ],
@@ -271,16 +286,14 @@ class ArtifactTile extends StatelessWidget {
                   artifact.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   AppFiles.humanBytes(artifact.bytes),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -366,13 +379,15 @@ class _LogConsoleState extends State<LogConsole> {
                   size: 18,
                 ),
                 const SizedBox(width: 6),
-                Text('Engine log', style: Theme.of(context).textTheme.labelMedium),
+                Text(
+                  'Engine log',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
                 const Spacer(),
                 Text(
                   '${widget.lines.length} lines',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -385,12 +400,17 @@ class _LogConsoleState extends State<LogConsole> {
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
+              ),
             ),
             child: widget.lines.isEmpty
                 ? Text(
                     'No output yet.',
-                    style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   )
                 : Scrollbar(
                     controller: _controller,
@@ -449,16 +469,18 @@ class EmptyState extends StatelessWidget {
                 child: Icon(icon, size: 30, color: scheme.primary),
               ),
               const SizedBox(height: 18),
-              Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
               if (message != null) ...[
                 const SizedBox(height: 8),
                 Text(
                   message!,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onSurfaceVariant, height: 1.5),
                 ),
               ],
               if (action != null) ...[const SizedBox(height: 20), action!],
@@ -486,7 +508,10 @@ class RequirementNotice extends StatelessWidget {
     final names = missingGroups
         .map((group) => group.map((tool) => tool.label).join(' or '))
         .join(', ');
-    final hints = missingGroups.expand((group) => group).map((tool) => tool.installHint).toSet();
+    final hints = missingGroups
+        .expand((group) => group)
+        .map((tool) => tool.installHint)
+        .toSet();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -505,7 +530,8 @@ class RequirementNotice extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Engine required: $names',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -517,9 +543,9 @@ class RequirementNotice extends StatelessWidget {
               child: Text(
                 hint,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      color: scheme.onSurfaceVariant,
-                    ),
+                  fontFamily: 'monospace',
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
           if (onOpenSettings != null) ...[

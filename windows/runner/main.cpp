@@ -17,6 +17,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
+  // Single-instance guard. The mutex name is also declared as AppMutex in the
+  // installer, so upgrades can detect a running DocForge and close it cleanly.
+  HANDLE instance_mutex =
+      ::CreateMutexW(nullptr, FALSE, L"DocForge.SingleInstance");
+  if (instance_mutex != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS) {
+    HWND existing = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"DocForge");
+    if (existing != nullptr) {
+      if (::IsIconic(existing)) {
+        ::ShowWindow(existing, SW_RESTORE);
+      }
+      ::SetForegroundWindow(existing);
+    }
+    ::CloseHandle(instance_mutex);
+    ::CoUninitialize();
+    return EXIT_SUCCESS;
+  }
+
   flutter::DartProject project(L"data");
 
   std::vector<std::string> command_line_arguments =

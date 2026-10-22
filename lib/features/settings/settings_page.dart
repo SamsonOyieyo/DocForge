@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/app_info.dart';
 import '../../core/app_state.dart';
+import '../../core/app_update.dart';
 import '../../core/engines/engine_manager.dart';
 import '../../core/engines/engine_tool.dart';
 import '../../core/engines/native_probe.dart';
@@ -53,13 +57,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 subtitle: 'DocForge follows your system theme by default.',
                 child: SegmentedButton<ThemeMode>(
                   segments: const [
-                    ButtonSegment(value: ThemeMode.system, label: Text('System')),
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      label: Text('System'),
+                    ),
                     ButtonSegment(value: ThemeMode.light, label: Text('Light')),
                     ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
                   ],
                   selected: {app.settings.themeMode},
                   onSelectionChanged: (selection) {
-                    app.updateSettings(app.settings.copyWith(themeMode: selection.first));
+                    app.updateSettings(
+                      app.settings.copyWith(themeMode: selection.first),
+                    );
                   },
                 ),
               ),
@@ -73,16 +82,23 @@ class _SettingsPageState extends State<SettingsPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: 0.45,
+                        ),
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.folder_outlined, size: 18, color: scheme.onSurfaceVariant),
+                          Icon(
+                            Icons.folder_outlined,
+                            size: 18,
+                            color: scheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              app.settings.outputDirectory ?? 'Default (app documents folder)',
+                              app.settings.outputDirectory ??
+                                  'Default (app documents folder)',
                               style: text.bodySmall,
                             ),
                           ),
@@ -124,7 +140,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   Text('Engines', style: text.titleMedium),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: scheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(999),
@@ -147,7 +166,10 @@ class _SettingsPageState extends State<SettingsPage> {
               Text(
                 'DocForge drives these open-source projects as local processes. '
                 'Add a custom path if an engine lives outside your PATH.',
-                style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.45),
+                style: text.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
               ),
               const SizedBox(height: 12),
               for (final tool in EngineTool.values) ...[
@@ -155,7 +177,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   status: app.toolkit.status(tool),
                   onLocate: () => _locateEngine(app, tool),
                   onReset: app.settings.toolPaths.containsKey(tool.name)
-                      ? () => app.updateSettings(app.settings.withToolPath(tool, null))
+                      ? () => app.updateSettings(
+                          app.settings.withToolPath(tool, null),
+                        )
                       : null,
                 ),
                 const SizedBox(height: 10),
@@ -163,7 +187,8 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 12),
               _Section(
                 title: 'Engine updates',
-                subtitle: 'Engines are independent packages: a single engine can be '
+                subtitle:
+                    'Engines are independent packages: a single engine can be '
                     'updated without shipping a new app build. Documents never leave '
                     'this device.',
                 trailing: app.checkingEngines
@@ -174,8 +199,13 @@ class _SettingsPageState extends State<SettingsPage> {
                       )
                     : IconButton(
                         tooltip: 'Check for engine updates',
-                        icon: const Icon(Icons.system_update_alt_rounded, size: 20),
-                        onPressed: app.engineManager == null ? null : app.checkEngineUpdates,
+                        icon: const Icon(
+                          Icons.system_update_alt_rounded,
+                          size: 20,
+                        ),
+                        onPressed: app.engineManager == null
+                            ? null
+                            : app.checkEngineUpdates,
                       ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -243,12 +273,15 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 16),
               _Section(
                 title: 'Diagnostics',
-                subtitle: 'Optional native libraries found next to the app. '
+                subtitle:
+                    'Optional native libraries found next to the app. '
                     'PDFium is bundled by the viewer; other FFI adapters can be dropped into engines/.',
                 trailing: IconButton(
                   tooltip: 'Re-probe',
                   icon: const Icon(Icons.memory_rounded, size: 20),
-                  onPressed: () => setState(() => _probes = probeNativeLibraries(app.engineDirectories)),
+                  onPressed: () => setState(
+                    () => _probes = probeNativeLibraries(app.engineDirectories),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -263,7 +296,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             Expanded(
                               child: Text(
                                 probe.name,
-                                style: text.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                                style: text.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                             Expanded(
@@ -287,7 +322,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: 4),
                     Text(
                       'Search paths',
-                      style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+                      style: text.labelMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     for (final directory in app.engineDirectories)
@@ -302,7 +339,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (app.engineDirectories.isEmpty)
                       Text(
                         'No bundled engine folders found. System PATH is still scanned.',
-                        style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                        style: text.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                   ],
                 ),
@@ -310,8 +349,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 16),
               _Section(
                 title: 'Privacy & licences',
-                subtitle:
-                    'Documents never leave this device. No analytics, no cloud calls, no accounts.',
+                subtitle: 'Documents never leave this device. No analytics, no cloud calls, no accounts.',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -319,13 +357,116 @@ class _SettingsPageState extends State<SettingsPage> {
                       'Engines keep their own licences. Ghostscript is AGPL-3.0 and Poppler is GPL-2.0 – '
                       'review obligations before distributing a closed-source build. QPDF (Apache-2.0), '
                       'Tesseract (Apache-2.0) and LibreOffice (MPL-2.0) are friendlier for commercial apps.',
-                      style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.5),
+                      style: text.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'DocForge 1.0.0 · Flutter desktop & mobile',
-                      style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                      'App updates contact GitHub only when you ask. Documents never leave this device.',
+                      style: text.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _Section(
+                title: 'About DocForge',
+                subtitle: 'Windows desktop build. Updates come from GitHub Releases and are verified with SHA-256 before they run.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.asset(
+                            'assets/icon/docforge.png',
+                            width: 48,
+                            height: 48,
+                            filterQuality: FilterQuality.medium,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${AppInfo.name} ${AppInfo.version}',
+                                style: text.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Windows desktop · 64-bit · per-user install',
+                                style: text.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        if (app.checkingAppUpdate)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 18),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        else
+                          OutlinedButton.icon(
+                            onPressed: app.downloadingAppUpdate
+                                ? null
+                                : app.checkForAppUpdate,
+                            icon: const Icon(
+                              Icons.system_update_alt_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Check for updates'),
+                          ),
+                      ],
+                    ),
+                    if (app.appUpdateStatus != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        app.appUpdateStatus!,
+                        style: text.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    if (app.appUpdateError != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: scheme.errorContainer.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          app.appUpdateError!,
+                          style: text.bodySmall?.copyWith(
+                            color: scheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (app.availableAppUpdate != null)
+                      _AppUpdateCard(
+                        release: app.availableAppUpdate!,
+                        downloading: app.downloadingAppUpdate,
+                        progress: app.appDownloadProgress,
+                        onInstall: () => _installAppUpdate(app),
+                      ),
                   ],
                 ),
               ),
@@ -336,8 +477,53 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<void> _installAppUpdate(AppState app) async {
+    final release = app.availableAppUpdate;
+    if (release == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Install DocForge ${release.version}?'),
+        content: const Text(
+          'DocForge will close and the installer will upgrade this per-user '
+          'installation in place. Reopen DocForge when the installer finishes. '
+          'Your documents, settings and history are kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Install update'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final installer = await app.downloadAppUpdate();
+    if (installer == null || !mounted) return;
+
+    try {
+      await app.launchAppUpdate(installer);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not start the installer: $error')),
+      );
+      return;
+    }
+
+    // The detached installer keeps running; let it replace this executable.
+    exit(0);
+  }
+
   Future<void> _chooseOutput(AppState app) async {
-    final directory = await FilePicker.getDirectoryPath(dialogTitle: 'Choose output folder');
+    final directory = await FilePicker.getDirectoryPath(
+      dialogTitle: 'Choose output folder',
+    );
     if (directory == null) return;
     await app.updateSettings(app.settings.copyWith(outputDirectory: directory));
   }
@@ -357,9 +543,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final message = result.success
         ? (result.message ?? 'Engine updated.')
         : (result.error ?? 'The engine update failed.');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -392,7 +577,11 @@ class _Section extends StatelessWidget {
 }
 
 class _EngineCard extends StatelessWidget {
-  const _EngineCard({required this.status, required this.onLocate, this.onReset});
+  const _EngineCard({
+    required this.status,
+    required this.onLocate,
+    this.onReset,
+  });
 
   final EngineStatus status;
   final VoidCallback onLocate;
@@ -414,7 +603,9 @@ class _EngineCard extends StatelessWidget {
 
     return SurfaceCard(
       padding: const EdgeInsets.all(16),
-      borderColor: status.available ? null : scheme.error.withValues(alpha: 0.25),
+      borderColor: status.available
+          ? null
+          : scheme.error.withValues(alpha: 0.25),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -439,11 +630,14 @@ class _EngineCard extends StatelessWidget {
                 ),
                 child: Text(
                   sourceLabel,
-                  style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                  style: text.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               Text(
-                status.version ?? (status.available ? 'Available' : 'Not found'),
+                status.version ??
+                    (status.available ? 'Available' : 'Not found'),
                 style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
@@ -451,7 +645,10 @@ class _EngineCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             tool.purpose,
-            style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
+            style: text.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 8),
           if (status.path != null)
@@ -487,14 +684,13 @@ class _EngineCard extends StatelessWidget {
                   'Licence: ${tool.license}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                  style: text.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               if (onReset != null)
-                TextButton(
-                  onPressed: onReset,
-                  child: const Text('Reset'),
-                ),
+                TextButton(onPressed: onReset, child: const Text('Reset')),
               TextButton.icon(
                 onPressed: onLocate,
                 icon: const Icon(Icons.folder_rounded, size: 16),
@@ -551,7 +747,9 @@ class _EngineUpdateCard extends StatelessWidget {
               if (current != null)
                 Text(
                   'from v$current',
-                  style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  style: text.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
             ],
           ),
@@ -593,6 +791,98 @@ String _engineLabel(String id) {
     if (tool.name == id) return tool.label;
   }
   return id;
+}
+
+class _AppUpdateCard extends StatelessWidget {
+  const _AppUpdateCard({
+    required this.release,
+    required this.downloading,
+    required this.progress,
+    required this.onInstall,
+  });
+
+  final AppRelease release;
+  final bool downloading;
+  final double? progress;
+  final VoidCallback onInstall;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final notes = release.notes;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.rocket_launch_rounded,
+                size: 18,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'DocForge ${release.version} is available',
+                  style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              if (release.assetSize > 0)
+                Text(
+                  _formatBytes(release.assetSize),
+                  style: text.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+          if (notes != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              notes,
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (downloading) ...[
+            LinearProgressIndicator(value: progress),
+            const SizedBox(height: 6),
+            Text(
+              'Downloading and verifying the installer…',
+              style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ] else ...[
+            FilledButton.icon(
+              onPressed: onInstall,
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Download & install'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'DocForge closes so the installer can upgrade it in place. '
+              'Settings, history and documents are kept.',
+              style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 String _formatBytes(int bytes) {
