@@ -58,7 +58,24 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test --reporter expanded
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --reporter expanded 2>&1 | tee test-output.txt
+
+      # Check-run annotations are readable without authentication, so surface
+      # failing test lines there when the job cannot be inspected directly.
+      - name: Report failing tests
+        if: failure()
+        shell: bash
+        run: |
+          {
+            grep -E '\[E\]|Expected:|Actual:|Test failed|Exception' test-output.txt | head -n 25
+            echo '--- tail ---'
+            tail -n 25 test-output.txt
+          } | while IFS= read -r line; do
+            echo "::error::${line:0:400}"
+          done
 
   android:
     name: Android (APK + AAB)
