@@ -280,23 +280,26 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7
 
-      - name: Download installer
+      # The Windows job uploads unzipped artifacts, which are named after their
+      # files, so download everything in the run and pick the assets below.
+      - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: windows-installer
           path: dist
-
-      - name: Download checksums
-        uses: actions/download-artifact@v7
-        with:
-          name: windows-checksums
-          path: dist
+          pattern: "*"
+          merge-multiple: true
 
       - name: Verify tag matches pubspec
         run: |
           version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1 | cut -d+ -f1)
           if [ "$GITHUB_REF_NAME" != "v$version" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match pubspec version v$version. Run python tool/bump_version.py first."
+            exit 1
+          fi
+          ls -l dist
+          installer=$(ls dist/DocForge-Setup-*.exe 2>/dev/null | head -n1)
+          if [ -z "$installer" ] || [ ! -f dist/SHA256SUMS.txt ]; then
+            echo "::error::Release assets are missing from the Windows build artifacts."
             exit 1
           fi
 

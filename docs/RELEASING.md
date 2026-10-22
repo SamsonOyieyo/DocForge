@@ -92,8 +92,9 @@ of the body in **Settings → About DocForge**.
 - Uninstalling removes the program folder but keeps settings, history and
   documents (they live under `%APPDATA%` and the output folder).
 
-The portable zip contains the raw `build\windows\x64\runner\Release` output for
-users who prefer not to install. It does not self-update.
+The Windows job also uploads a portable zip as a workflow artifact
+(`DocForge-<version>-windows-x64.zip`, available from the Actions run while it
+is retained). It is not attached to the GitHub release and does not self-update.
 
 ## App updates
 
